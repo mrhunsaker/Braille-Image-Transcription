@@ -10,6 +10,10 @@ and this project adheres to
 
 ### Added
 
+- template.env (committed through the git index during task 3):
+  a tracked template for the git-ignored .env file. Note that
+  LIBLOUIS_NEMETH_TABLE is listed in the template but is not
+  read by the current code.
 - CHANGES.md changelog (Keep a Changelog 1.1 format). Every change is
   recorded here at the time it is made.
 - prompt.json work order describing the NiceGUI migration, pipeline
@@ -85,6 +89,17 @@ and this project adheres to
   discussion in tests/test_files/benchmark_report.md):
   6d6670b8 0 -> 5 records, 9df11121 confidence 0.0 -> 0.763,
   and more real content detected on every image.
+- scripts/generate_expected.py regenerates the expected OCR
+  results in tests/test_files/expected/<stem>.json (word lists,
+  record and word counts). The files are marked
+  generated-and-human-review-pending.
+- tests/test_pipeline.py integration suite running the real
+  pipeline over all 7 test images: record/group counts match
+  the expected data, group characters are left-to-right
+  ordered, tokens are non-empty, every detected word
+  translates, and .env stays valid. Tesseract- and
+  Liblouis-dependent tests skip with clear reasons when the
+  tools are absent.
 
 ### Changed
 
