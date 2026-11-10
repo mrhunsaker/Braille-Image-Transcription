@@ -1,0 +1,11 @@
+Found 7 test images
+
+0ad3f61f997eb05afb341fc46024bf2b_img.jpg: 28 records, 13 words, confidence 0.96, translated 13
+431b8889a0e7f676f0eef40859590349_img.jpg: 44 records, 27 words, confidence 0.892, translated 27
+67020988167474f5810b295ba0fdc993_img.jpg: 32 records, 16 words, confidence 0.956, translated 16
+6d6670b8e65d3ff8126e5ab9aeaffbd8_img.jpg: 0 records, 0 words, confidence 0.0, translated 0
+87658d45f2d2f009cbb9cd1079519cb5_img.jpg: 12 records, 7 words, confidence 0.95, translated 7
+90864f8e2844459829af942ef5dc6bc5_img.jpg: 5 records, 2 words, confidence 0.904, translated 2
+9df11121dce75cf8f86a97e7d2840bd5_img.jpg: 12 records, 12 words, confidence 0.0, translated 12
+
+All images processed

@@ -59,6 +59,13 @@ and this project adheres to
   validation dialog on a machine without Tesseract, and with
   TESSERACT_CMD pointed at a nonexistent path the dialog echoes the
   bad path with remediation text (role=alert, aria-live=assertive).
+- scripts/benchmark.py measures per-image pipeline metrics (records,
+  words, mean confidence, translated words) over tests/test_files.
+  It exits non-zero when any image fails to process. The baseline
+  (tests/test_files/benchmark_baseline.txt, Tesseract 5.4.0):
+  one image returns 0 records (6d6670b8, 359x216 px) and one has
+  0.0 mean confidence (9df11121) because no characters could be
+  associated with detected words.
 
 ### Changed
 
