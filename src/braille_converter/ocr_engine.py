@@ -22,6 +22,27 @@ ALLOWED_SYMBOLS = set(
 )
 
 
+# Characters that signal mathematical content.
+# Tokens containing any of these default to the math
+# classification; the reviewer can override per record.
+MATH_SYMBOLS = set(
+    "+-=()[]{}*/^_"
+    "<>≤≥×÷√"
+)
+
+
+def suggest_kind(text):
+    """Return 'math' when text contains math symbols."""
+
+    if any(
+        char in MATH_SYMBOLS
+        for char in text
+    ):
+        return "math"
+
+    return "literary"
+
+
 # Page segmentation mode for both word and character
 # detection. Measurements on tests/test_files show
 # --psm 6 (uniform block of text) detects substantially
@@ -287,6 +308,10 @@ def recognize_characters(image_path):
 
             confidence = None
 
+        kind = suggest_kind(
+            source_word
+        )
+
         prepared.append({
             "text": char,
             "x1": x1,
@@ -296,7 +321,8 @@ def recognize_characters(image_path):
             "rank": rank,
             "group_id": group_id,
             "source_word": source_word,
-            "confidence": confidence
+            "confidence": confidence,
+            "kind": kind
         })
 
     # Stable order: word rank, then x position.
@@ -329,6 +355,7 @@ def recognize_characters(image_path):
                 confidence=item[
                     "confidence"
                 ],
+                kind=item["kind"],
                 source_word=item[
                     "source_word"
                 ],

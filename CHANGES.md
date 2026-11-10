@@ -100,6 +100,11 @@ and this project adheres to
   translates, and .env stays valid. Tesseract- and
   Liblouis-dependent tests skip with clear reasons when the
   tools are absent.
+- Automatic literary/math classification hint: records from a
+  word containing math symbols (for example =, +, (, ), ×) are
+  initially classified as math; everything else as literary.
+  The reviewer can still change the classification of any
+  record.
 
 ### Changed
 
