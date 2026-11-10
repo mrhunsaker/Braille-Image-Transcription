@@ -15,6 +15,7 @@ and this project adheres to
 - prompt.json work order describing the NiceGUI migration, pipeline
   optimization, accessibility requirements, error-handling policy, and
   repository files for GitHub.
+- nicegui dependency for the screen-reader-accessible web GUI.
 - uv.lock is now tracked. uv recommends committing the lockfile for
   applications so environments are reproducible.
 
