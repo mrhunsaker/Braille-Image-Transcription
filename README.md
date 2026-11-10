@@ -7,6 +7,7 @@ containing text and mathematical notation into Braille.
 ## Features
 
 - Import JPG, JPEG, PNG, TIFF, BMP, and WEBP.
+- Screen-reader-accessible web GUI (NiceGUI).
 - Character-level OCR using Tesseract.
 - Original-image pixel coordinates.
 - Human OCR correction.
@@ -19,6 +20,8 @@ containing text and mathematical notation into Braille.
 - US Letter PDF export.
 - JSON export.
 - Tactile-dot SVG export.
+- Startup validation with explicit error dialogs for missing
+  dependencies (no silent failures).
 
 ## Requirements
 
@@ -26,6 +29,8 @@ containing text and mathematical notation into Braille.
 - uv
 - Tesseract OCR
 - Liblouis with UEB tables
+- A modern web browser (the GUI runs locally and opens in your
+  default browser; this gives the best screen-reader support)
 
 ## Install Python dependencies
 
@@ -51,26 +56,37 @@ Install Liblouis and its UEB tables.
 
 The application uses:
 
-    en-ueb-g1.ctb
+    en-ueb-g2.ctb
 
-for literary translation and:
+for literary translation (contracted Unified English Braille) and:
 
     en-ueb-math.ctb
 
 for mathematical translation.
 
-Set LIBLOUIS_TABLES if the table directory is
-not automatically detected by your installation.
+Set LIBLOUIS_UEB_TABLE or LIBLOUIS_UEB_MATH_TABLE to use
+different tables. A .env file in the project root with
+KEY=VALUE lines is also honored; OS environment variables
+take precedence over .env values.
 
-The environment variables:
-
-    LIBLOUIS_UEB_TABLE
-    LIBLOUIS_UEB_MATH_TABLE
-
-can be used to specify table paths.
+If lou_translate is not on PATH, the application also checks
+the LOU_TRANSLATE_CMD environment variable and common
+install locations such as C:\Liblouis\bin.
 
 ## Run
 
+    uv run braille-converter
+
+The app starts a local web server and opens
+http://localhost:8787 in your default browser.
+
+On startup the app validates the environment (Tesseract,
+Liblouis, .env) and shows a dialog listing anything missing,
+with instructions for fixing it.
+
+Optional native window mode (requires pywebview):
+
+    set BRAILLE_CONVERTER_NATIVE=1
     uv run braille-converter
 
 ## Output files
@@ -88,13 +104,11 @@ The application produces:
 
 ## PyInstaller
 
-Build the Windows application on Windows:
-
-    uv run pyinstaller --noconfirm --clean --onedir --windowed --name BrailleConverter --collect-all pytesseract --collect-all PIL -m braille_converter.main
-
-For a more reliable build, use a PyInstaller spec file
-and explicitly configure external Tesseract and
-Liblouis executables and their data files.
+The previous tkinter-based PyInstaller instructions no longer
+apply. NiceGUI applications package differently; see the
+NiceGUI PyInstaller documentation for the current
+recommended approach. A verified spec file for this project
+has not yet been produced.
 
 ## Important limitations
 
