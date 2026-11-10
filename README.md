@@ -102,6 +102,19 @@ The application produces:
 
     uv run pytest
 
+## Community files
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — how to set up and
+  submit changes
+- [CODE_STYLE.md](CODE_STYLE.md) — the code style of this
+  repository
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — Contributor
+  Covenant
+- [CONTRIBUTORS.md](CONTRIBUTORS.md) — contributor list
+- [SECURITY.md](SECURITY.md) — how to report vulnerabilities
+- [SUPPORT.md](SUPPORT.md) — where to get help
+- [CHANGES.md](CHANGES.md) — changelog
+
 ## PyInstaller
 
 The previous tkinter-based PyInstaller instructions no longer

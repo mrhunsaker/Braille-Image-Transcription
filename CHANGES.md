@@ -14,6 +14,15 @@ and this project adheres to
   a tracked template for the git-ignored .env file. Note that
   LIBLOUIS_NEMETH_TABLE is listed in the template but is not
   read by the current code.
+- Community and repository files for GitHub: CONTRIBUTORS.md,
+  CONTRIBUTING.md, CODE_STYLE.md (codifying the actual style of
+  this codebase), CODE_OF_CONDUCT.md (Contributor Covenant
+  2.1), SECURITY.md, SUPPORT.md, issue templates (bug report,
+  feature request), a pull request template with accessibility
+  checkboxes, and a CI workflow (GitHub Actions, uv + pytest
+  with Liblouis installed; Tesseract-dependent tests skip in
+  CI because expected OCR data is Tesseract-version specific).
+- README.md links to all community files.
 - CHANGES.md changelog (Keep a Changelog 1.1 format). Every change is
   recorded here at the time it is made.
 - prompt.json work order describing the NiceGUI migration, pipeline
