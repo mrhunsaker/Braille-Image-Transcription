@@ -1,16 +1,28 @@
 
-import tkinter as tk
+import os
 
-from .gui import ConverterApp
+from nicegui import ui
+
+from . import gui
 
 
 def main():
+    """Launch the NiceGUI Braille converter."""
 
-    root = tk.Tk()
+    native = (
+        os.environ.get(
+            "BRAILLE_CONVERTER_NATIVE"
+        )
+        == "1"
+    )
 
-    ConverterApp(root)
-
-    root.mainloop()
+    ui.run(
+        title="Braille Converter - OCR Review",
+        port=8787,
+        reload=False,
+        show=not native,
+        native=native
+    )
 
 
 if __name__ == "__main__":
