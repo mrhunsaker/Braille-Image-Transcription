@@ -55,6 +55,10 @@ and this project adheres to
   dimensions).
 - Output folder is a labelled text input (typed path) rather than a
   mouse-only folder picker.
+- Verified end to end: the app serves HTTP 200 with the startup
+  validation dialog on a machine without Tesseract, and with
+  TESSERACT_CMD pointed at a nonexistent path the dialog echoes the
+  bad path with remediation text (role=alert, aria-live=assertive).
 
 ### Changed
 
