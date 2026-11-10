@@ -1,0 +1,196 @@
+{
+  "meta": {
+    "name": "braille-converter-work-order",
+    "version": "1.3.0",
+    "created": "2026-11-10",
+    "audience": "AI coding agent executing in build mode against this repository",
+    "instructions": "Read this entire document, then read README.md, pyproject.toml, every file in src/braille_converter/ and tests/ to confirm current state before changing anything. Execute tasks in order. Each task's acceptance_criteria must be met before moving on. global_constraints apply at all times. Follow changelog_policy for every change and git_policy to commit and push after EVERY completed step. Environment facts below were verified on 2026-11-10; re-verify each before relying on it, and never assume an environment fact still holds."
+  },
+  "project": {
+    "name": "braille-converter",
+    "description": "Raster OCR to Unified English Braille converter",
+    "repo": "https://github.com/mrhunsaker/Braille-Image-Transcription",
+    "language": "Python 3.11+",
+    "package_manager": "uv",
+    "package_dir": "src/braille_converter",
+    "entry_points": [
+      "braille_converter.main:main (console script braille-converter)",
+      "run_app.py"
+    ],
+    "source_files": [
+      "src/braille_converter/__init__.py",
+      "src/braille_converter/main.py",
+      "src/braille_converter/gui.py",
+      "src/braille_converter/models.py",
+      "src/braille_converter/ocr_engine.py",
+      "src/braille_converter/translator.py",
+      "src/braille_converter/layout.py",
+      "src/braille_converter/braille_render.py",
+      "src/braille_converter/image_pipeline.py"
+    ],
+    "test_files": [
+      "tests/test_layout.py",
+      "tests/test_braille_render.py",
+      "tests/test_files/*.jpg (7 images, roughly 359x216 to 539x523 px)"
+    ],
+    "pipeline_summary": [
+      "1. Load a raster image (JPG/JPEG/PNG/TIFF/BMP/WEBP).",
+      "2. Tesseract OCR: word boxes via image_to_data with --psm 11, plus character boxes via image_to_boxes; characters inherit confidence/group_id from the word containing their center (see ocr_engine.recognize_characters).",
+      "3. Human review: per-character editing of text, kind (literary/math), and approved flag (see gui.ConverterApp).",
+      "4. Translation: records grouped by group_id, joined per word, translated with Liblouis UEB tables (translator.translate_ueb); the whole word's braille is stored on its first record.",
+      "5. Export (image_pipeline.export_outputs): inpaint away the original text (cv2), resize to the chosen page layout, draw physical-size braille dots at word positions, and write PNG, US Letter PDF, JSON, and tactile SVG outputs."
+    ],
+    "current_gui": "tkinter (gui.py ~650 lines); main.py creates tk.Tk() and runs mainloop()."
+  },
+  "environment": {
+    "platform": "Windows (primary); keep code cross-platform where practical",
+    "commands": {
+      "install": "uv sync --extra dev",
+      "test": "uv run pytest",
+      "run": "uv run braille-converter"
+    },
+    "tesseract": "NOT installed as of 2026-11-10 (not on PATH, not at C:\\Program Files\\Tesseract-OCR). Task 3 requires installing it, e.g.: winget install -e --id UB-Mannheim.TesseractOCR (restart the shell afterwards), or set TESSERACT_CMD to the full path of tesseract.exe. ocr_engine.configure_tesseract() already honors TESSERACT_CMD and the default install path. Re-verify before installing.",
+    "liblouis": "Installed at C:\\Liblouis. CLI: C:\\Liblouis\\bin\\lou_translate.exe. Tables at C:\\Liblouis\\share\\liblouis\\tables\\ including en-ueb-g1.ctb, en-ueb-g2.ctb, en-ueb-math.ctb. The Python 'louis' module is not installed. The owner states C:\\Liblouis\\bin was added to PATH on 2026-11-10; the planning session could not observe it (stale session), so the build agent MUST re-verify with Get-Command lou_translate in its own session. Regardless of the outcome, translation must work end to end after Task 3, and any discovery failure must produce a loud, actionable error — never a silent empty translation.",
+    "env_file": "A .env file exists for table overrides. It was found malformed on 2026-11-10 — both lines were missing the '=' separator (e.g. 'LIBLOUIS_UEB_TABLE_C:\\...' instead of 'LIBLOUIS_UEB_TABLE=C:\\...'), so a dotenv parser would never have set either variable — and it was corrected the same day to LIBLOUIS_UEB_TABLE=C:\\Liblouis\\share\\liblouis\\tables\\en-ueb-g2.ctb and LIBLOUIS_UEB_MATH_TABLE=C:\\Liblouis\\share\\liblouis\\tables\\en-ueb-math.ctb. No code loads .env yet, and translator.get_table() defaults to en-ueb-g1.ctb. Task 3 mandates resolving this: en-ueb-g2.ctb becomes the code default and .env is loaded with strict, loud validation (see Task 3).",
+    "test_images_note": "The 7 JPGs under tests/test_files/ are small (359x216 to 539x523 px), which is below Tesseract's comfortable resolution; expect upscaling and preprocessing to materially improve OCR quality."
+  },
+  "git_state": {
+    "verified": "2026-11-10",
+    "remote": "origin -> https://github.com/mrhunsaker/Braille-Image-Transcription.git (fetch and push)",
+    "branch": "main",
+    "working_tree": ".idea/vcs.xml is staged; uv.lock is untracked. Handle these in Task 1 housekeeping per git_policy — do NOT commit IDE files, and DO commit uv.lock for reproducibility.",
+    "pre_existing_ignore_gaps": ".idea/ is not ignored (the JetBrains ignore block is commented out in .gitignore); uv.lock is not ignored (its ignore line is also commented out, which is correct for this application)."
+  },
+  "global_constraints": [
+    "NO SILENT FAILURES. This is a hard, top-priority requirement. Every failure at every layer must surface visibly and audibly to the user: no bare 'except: pass', no catch-and-continue, no swallowing exceptions into empty results, no returning empty strings on error, no printing a warning and continuing. Errors must raise typed exceptions carrying actionable messages (what failed, where the code looked, how to fix it), and the GUI must present them in an accessible modal dialog (see Task 2). If a dependency is missing, the user must find out through an explicit error — never through suspicious empty output.",
+    "COMMIT AND PUSH AFTER EVERY STEP. Every completed step within every task must end with a commit that is pushed to origin/main, per git_policy. Do not batch commits at the end of a task or at the end of all work.",
+    "Screen-reader accessibility is a hard requirement, not a nice-to-have. The GUI must be fully usable with NVDA or JAWS on Windows and with keyboard only: semantic HTML, every control labelled, logical focus order and focus management between steps, aria-live status announcements for OCR/translation/export progress and results, no mouse-only interactions (no drag-only upload), and no meaning conveyed by color or image alone. The OCR review table is the primary interface for screen-reader users; the image preview must have meaningful alt text and is secondary.",
+    "The literary Braille table default is en-ueb-g2.ctb (contracted Unified English Braille). The LIBLOUIS_UEB_TABLE and LIBLOUIS_UEB_MATH_TABLE environment variables remain supported overrides, and .env values must be honored.",
+    "Preserve the pipeline contract: the OCRRecord model (models.py), word-grouped translation, and the four exports (PNG, PDF, JSON, tactile SVG) must continue to work end to end.",
+    "Do not modify or delete anything under tests/test_files/. New expected-output data goes in a new directory (e.g. tests/test_files/expected/).",
+    "Every change, however small, must be recorded in CHANGES.md at the time it is made (see changelog_policy).",
+    "Follow the existing code style of this repository (to be codified in CODE_STYLE.md in Task 4): one statement per line, a blank line between statements, dataclasses for data models, type hints, ~72-79 column lines, descriptive lowercase names.",
+    "Use uv for all dependency management; add new dependencies to pyproject.toml.",
+    "Keep README.md accurate after every user-facing change.",
+    "Never commit secrets; .env remains git-ignored and must never be staged, committed, or pushed.",
+    "Existing tests must keep passing (uv run pytest); extend the suite rather than weakening it."
+  ],
+  "git_policy": {
+    "remote": "origin -> https://github.com/mrhunsaker/Braille-Image-Transcription.git",
+    "branch": "main",
+    "cadence": "After EVERY completed step within every task: update CHANGES.md for the changes made in that step, stage the files that step touched, commit, and push to origin main immediately. Never leave completed work uncommitted, and never end a step with unpushed commits.",
+    "commit_message_style": "Concise imperative subject line (<= 72 characters, no trailing period) in English; add a body when the why is not obvious from the subject. Reference the task/step, e.g. 'task 3 step 5:'.",
+    "workflow": [
+      "Before starting: run git remote -v, git branch --show-current, and git status to confirm the remote, branch, and working tree state match git_state above; re-verify if anything differs.",
+      "Housekeeping first commit (Task 1): add .idea/ to .gitignore, unstage .idea/vcs.xml (git restore --staged .idea/vcs.xml and leave it untracked/ignored), and commit uv.lock (uncomment/add it as tracked; uv recommends committing the lock for applications). Commit and push this housekeeping as its own step.",
+      "Stage explicitly per step (git add <specific paths>); never use git add -A blindly. Double-check with git status before committing that only intended files are staged.",
+      "Every commit includes the CHANGES.md update for that step in the same commit.",
+      "Never commit: .env, .idea/, .venv/, build artifacts, or generated outputs from test runs (add ignore rules if outputs appear outside the intended export folder).",
+      "If push is rejected because the remote moved: git pull --rebase origin main, resolve any conflicts (never force-push), then push again.",
+      "If push fails (auth, network): retry once, and if it still fails, STOP and report the failure explicitly — do not silently continue leaving unpushed commits. All work must reach the remote before the engagement is considered complete.",
+      "Verify at the end of every task: git status is clean of unstaged work and git log origin/main includes every step's commit."
+    ]
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Bootstrap CHANGES.md and git housekeeping",
+      "steps": [
+        "Run git remote -v, git branch --show-current, and git status; confirm the state matches git_state. Verify .env is ignored and will never be staged.",
+        "Housekeeping commit: add .idea/ to .gitignore, unstage .idea/vcs.xml so no IDE files are committed, and add uv.lock (uv recommends committing the lockfile for applications). Commit and push this as the first commit.",
+        "Create CHANGES.md at the repository root using Keep a Changelog 1.1 format: an '## [Unreleased]' section with Added / Changed / Fixed / Removed / Deprecated categories.",
+        "Record the creation of CHANGES.md itself and the git housekeeping as entries.",
+        "From this point on, append an entry for every change immediately as it is made; never batch entries at the end. Commit and push after each step above."
+      ],
+      "acceptance_criteria": [
+        "CHANGES.md exists with valid Keep a Changelog structure.",
+        ".idea/ is ignored, uv.lock is tracked, .env is not tracked, and these changes are committed and pushed.",
+        "Every subsequent change in Tasks 2-4 appears in CHANGES.md and in a pushed commit."
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Replace the tkinter GUI with a screen-reader-accessible NiceGUI GUI with loud error dialogs",
+      "steps": [
+        "Add nicegui to pyproject.toml dependencies and uv sync. Commit and push (with its CHANGES.md entry).",
+        "Rewrite gui.py as a NiceGUI application and update main.py to launch it (ui.run with reload=False, a fixed title, and a sensible port). run_app.py must keep working unchanged. Commit and push.",
+        "Default run mode: open in the user's default browser (best screen-reader compatibility via the browser's accessibility tree). Optionally support native-window mode via a CLI flag or environment variable, documented in README.md. Commit and push.",
+        "Recreate the full existing workflow: open/upload image, run OCR, review all OCR records in a table, select a record and edit its text / kind (literary or math) / approved flag, apply the edit, translate all, choose page layout and output folder, export all outputs. Keep the same underlying functions (recognize_characters, translate_ueb, export_outputs, LAYOUTS, BrailleProfile) so this is a GUI-layer replacement, not a rewrite of business logic. Commit and push.",
+        "Error handling — NO SILENT FAILURES (mandatory): every operation (image load, OCR, translate, export) is wrapped so that any exception surfaces in a modal error dialog built with ui.dialog. The dialog must: be keyboard focusable and closable (Enter and Escape), trap focus while open and return focus to the invoking control on close, carry alert semantics so screen readers announce it automatically (e.g. role='alert' / aria-live='assertive'), and show the full error message plus actionable remediation text (e.g. which dependency is missing and where the code looked for it). The aria-live status region must mirror the error text. There must be no code path where an operation fails and the UI stays silent or shows an empty result without explanation. Commit and push.",
+        "Startup validation: on app launch, check that Tesseract is reachable (ocr_engine.configure_tesseract / pytesseract.get_tesseract_version), that Liblouis is usable (python binding or lou_translate discoverable, and the configured UEB table files exist), and that .env (if present) parses without malformed lines; show an explicit modal dialog at startup listing anything missing or malformed — before the user invests time in a workflow that would fail later. Re-check when settings that affect discovery change. Commit and push.",
+        "Accessibility requirements, all mandatory: use ui.table (semantic HTML table) for OCR records with clear column headers and sortable columns; label every input, select, and button; ensure the whole workflow is keyboard-operable (tab/arrow/enter, no mouse-only gestures); render the status line as an aria-live='polite' region that announces 'OCR found N records', translation completion, export results, and errors; manage focus so that after OCR completes, focus moves to the results table; give the image preview meaningful alt text (e.g. filename and dimensions); make the output folder a labelled text input (typed path) rather than a mouse-only folder dialog. Commit and push.",
+        "Update README.md: requirements, run instructions, and the PyInstaller section (NiceGUI packaging differs from tkinter; document the new recommended approach or remove stale instructions). Commit and push.",
+        "Manually verify the complete workflow using keyboard only, and with a screen reader if available; fix anything that is not announced or reachable. Deliberately break a dependency (e.g. set TESSERACT_CMD to a nonexistent path) and confirm a clear error dialog appears; restore it afterwards. Commit and push any fixes."
+      ],
+      "acceptance_criteria": [
+        "No tkinter imports remain anywhere in the package.",
+        "uv run braille-converter starts the NiceGUI app and the entire workflow (load, OCR, review, edit, translate, export) completes successfully.",
+        "The workflow is fully keyboard-operable; controls are labelled; status changes are announced via an aria-live region.",
+        "Error paths produce visible, screen-reader-announced modal dialogs with actionable messages; a deliberately broken dependency at startup or mid-workflow produces a clear dialog, not silence or empty output.",
+        "uv run pytest passes.",
+        "Every step of this task is an individual commit pushed to origin main, each including its CHANGES.md entry; git status is clean afterwards."
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Optimize the pipeline using the files in tests/test_files",
+      "steps": [
+        "Install Tesseract if it is missing (see environment.tesseract) and verify with tesseract --version. Verify lou_translate resolves (Get-Command lou_translate); if it does not, make translation work anyway via robust discovery (see the translator step below) — and if discovery fails, fail loudly. Commit any PATH/env documentation updates and push.",
+        "Create a benchmark script (e.g. scripts/benchmark.py) that runs OCR on all 7 images in tests/test_files/ and prints per-image metrics: words detected, characters detected, mean word confidence, and translation success per word. Capture a baseline 'before' report before changing anything. The script must exit non-zero with a clear message if any step fails — never print-and-continue. Commit and push the script and baseline report.",
+        "Create ground-truth expectations for the test images (tests/test_files/expected/<stem>.json): run the improved pipeline to generate candidate expected word lists, review them against the images, and clearly mark them in the files as generated-and-human-review-pending if you cannot visually verify every character. Commit and push.",
+        "Improve OCR quality on these small images: upscale 2x-4x with LANCZOS before OCR; test grayscale, autocontrast, and binarization variants; compare --psm modes (11 vs 6, 3, 4) and pick the best measured configuration for this image set. Keep changes behind measured results recorded in the benchmark report. Commit and push each measured change with its evidence.",
+        "Improve word/character association in ocr_engine.recognize_characters: replace the O(n*m) linear containment scan with an efficient sorted/bucketed lookup, and make record ordering stable (by word, then x). Commit and push.",
+        "Make en-ueb-g2.ctb the default literary table: change translator.get_table()'s literary default from en-ueb-g1.ctb to en-ueb-g2.ctb. Keep LIBLOUIS_UEB_TABLE and LIBLOUIS_UEB_MATH_TABLE overrides, and load .env at startup with a small dependency-free loader (override order: OS environment variables take precedence over .env values). The loader must validate strictly and loudly: any non-comment line that does not match KEY=VALUE must raise an explicit, actionable error surfaced through the startup validation dialog — never a silent skip. This is not hypothetical: the real .env was found malformed exactly this way on 2026-11-10 (both lines missing the '=' separator). Update README.md and CHANGES.md; note the change from g1 to g2 in both. Commit and push.",
+        "Harden translator.translate_ueb discovery and error reporting, preserving NO SILENT FAILURES: try the Python 'louis' binding; if unavailable, locate lou_translate via shutil.which, then common install locations (e.g. C:\\Liblouis\\bin\\lou_translate.exe), then an explicit env override (e.g. LOU_TRANSLATE_CMD). If every option fails, raise TranslationError listing every location checked and how to fix it (install Liblouis, add to PATH, set the env var). If a table file is missing or a translation subprocess fails, raise TranslationError with the table path and stderr included. Never return an empty string in place of an error. Commit and push.",
+        "Optionally add automatic literary/math classification hints (tokens containing math symbols default to math kind) while keeping human override. Commit and push if implemented.",
+        "Add pytest integration tests that run the pipeline against tests/test_files/ images and compare against the expected data, skipping gracefully with a clear reason when Tesseract or Liblouis is unavailable (pytest.mark.skipif / skip decorators). Include unit tests that translator failures raise TranslationError with actionable messages when dependencies are missing (e.g. point discovery at a nonexistent path). Commit and push.",
+        "Run the benchmark again and record before/after metrics in CHANGES.md. Commit and push."
+      ],
+      "acceptance_criteria": [
+        "A benchmark report exists showing before/after metrics for all 7 test images.",
+        "OCR changes are justified by measured improvements on the test set (or explicitly documented as neutral with rationale).",
+        "translator.get_table() defaults to en-ueb-g2.ctb; env var overrides and .env loading work and are documented in README.md; the g1-to-g2 change is recorded in CHANGES.md.",
+        "Translation works end to end on this machine, and every failure path (missing binding, missing CLI, missing table, subprocess error) raises TranslationError with actionable detail that the GUI displays as a dialog.",
+        "New integration tests pass when Tesseract/Liblouis are available and skip cleanly otherwise; existing tests still pass.",
+        "Each optimization is an individual commit pushed to origin main with its CHANGES.md entry and measured effect."
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Add community and repository files for GitHub",
+      "steps": [
+        "CONTRIBUTORS.md: list contributors derived from git history (currently mrhunsaker), with a note on how the list is maintained. Commit and push.",
+        "CONTRIBUTING.md: how to set up (uv sync --extra dev, Tesseract, Liblouis), run tests, follow CODE_STYLE.md, and submit issues/PRs. Include the commit-and-push-per-step expectation for contributors' PR hygiene where sensible. Commit and push.",
+        "CODE_STYLE.md: codify the style actually used in this codebase (see global_constraints) plus docstring, naming, import, and formatting conventions. Commit and push.",
+        "CODE_OF_CONDUCT.md: Contributor Covenant v2.1 with contact details for enforcement. Commit and push.",
+        "SECURITY.md: how to report vulnerabilities privately. Commit and push.",
+        "SUPPORT.md: where to get help (issues, discussions) and what is out of scope. Commit and push.",
+        ".github/ISSUE_TEMPLATE/bug_report.md and feature_request.md, plus .github/PULL_REQUEST_TEMPLATE.md. Commit and push.",
+        "Optionally add .github/workflows/ci.yml running uv sync --extra dev and uv run pytest on push/PR (Tesseract-dependent tests will skip in CI). Commit and push if added.",
+        "Link the new documents from README.md where appropriate. Commit and push."
+      ],
+      "acceptance_criteria": [
+        "All listed files exist at the repository root or under .github/ and are accurate for this project (uv, Python 3.11+, Windows-primary).",
+        "CODE_STYLE.md matches the real code, not generic boilerplate.",
+        "CHANGES.md lists the added files.",
+        "Each added document is an individual commit pushed to origin main."
+      ]
+    }
+  ],
+  "changelog_policy": {
+    "file": "CHANGES.md",
+    "format": "Keep a Changelog 1.1: '## [Unreleased]' with Added / Changed / Fixed / Removed / Deprecated subsections; dated '## [x.y.z] - YYYY-MM-DD' sections when a version is released.",
+    "rule": "Append an entry immediately with every change, however small. Entries describe what changed and why. Do not summarize multiple changes into one vague entry, and do not write the file retroactively at the end of the work. Each CHANGES.md update is committed together with the change it describes (see git_policy)."
+  },
+  "definition_of_done": [
+    "uv run pytest passes.",
+    "uv run braille-converter launches the NiceGUI app; the full workflow completes and is keyboard-only operable with screen-reader-friendly semantics (labelled controls, accessible table, aria-live status).",
+    "No silent failures anywhere: missing dependencies, failed OCR, failed translation, and failed exports each produce a visible, screen-reader-announced modal dialog with actionable messages; startup validation warns immediately when the environment is incomplete.",
+    "en-ueb-g2.ctb is the default literary table, with env var and .env overrides honored and documented.",
+    "The benchmark shows before/after metrics for all 7 test images; optimizations are logged with their measured effects.",
+    "CHANGES.md reflects every change made during this work.",
+    "CONTRIBUTORS.md, CONTRIBUTING.md, CODE_STYLE.md, CODE_OF_CONDUCT.md, SECURITY.md, SUPPORT.md, and .github/ templates exist.",
+    "README.md is accurate for the new GUI, dependencies, table defaults, and configuration.",
+    "Every step of every task is committed and pushed to origin main: git status is clean, git log origin/main contains every step's commit, and no work exists only locally."
+  ]
+}
