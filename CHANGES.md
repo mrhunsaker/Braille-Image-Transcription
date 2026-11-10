@@ -66,6 +66,25 @@ and this project adheres to
   one image returns 0 records (6d6670b8, 359x216 px) and one has
   0.0 mean confidence (9df11121) because no characters could be
   associated with detected words.
+- OCR now uses --psm 6 (uniform block of text) for both word and
+  character detection. Measured over all 7 test images, psm 6
+  detects 136 words vs 41 for the previous psm 11; see
+  tests/test_files/benchmark_report.md for the full comparison of
+  psm modes and preprocessing variants (upscaling and
+  autocontrast measured worse and are rejected).
+- ocr_engine.py word/character association replaced the O(n*m)
+  linear scan with a bucketed grid index, and records are now
+  ordered stably by word (top-to-bottom, left-to-right reading
+  order) then horizontal position.
+- Fixed the root cause of the 9df11121 zero-confidence result:
+  word detection used psm 11 while character detection used the
+  default psm 3, so their boxes came from different
+  segmentations and no character ever matched a word. Both calls
+  now use the same psm so the segmentations agree.
+- OCR results after the changes (full report and trade-off
+  discussion in tests/test_files/benchmark_report.md):
+  6d6670b8 0 -> 5 records, 9df11121 confidence 0.0 -> 0.763,
+  and more real content detected on every image.
 
 ### Changed
 
