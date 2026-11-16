@@ -187,3 +187,13 @@ and this project adheres to
   LIBLOUIS_UEB_TABLE=C:\...), so a dotenv parser would never have set
   either variable. Both lines are now valid KEY=VALUE pairs pointing
   at existing UEB tables.
+- CI was red on every run: tests/test_pipeline.py::
+  test_every_detected_word_translates declared only the Liblouis
+  requirement while it also runs OCR. The CI runner installs Liblouis
+  but not Tesseract, so the test failed instead of skipping. Tool
+  requirements are now declared with @pytest.mark.tesseract and
+  @pytest.mark.liblouis, the availability checks live once in
+  tests/conftest.py (replacing three duplicated copies), and a
+  collection hook turns a missing tool into a skip with a clear reason.
+  A test that needs both tools declares both markers, so this class of
+  bug cannot recur silently.

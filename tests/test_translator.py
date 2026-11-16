@@ -1,37 +1,15 @@
 
-import shutil
-
 import pytest
 
 from braille_converter.translator import (
     translate_ueb,
     load_env_file,
-    find_lou_translate,
     project_root,
     TranslationError
 )
 
 
-def liblouis_available():
-    """True when a usable Liblouis is installed."""
-
-    try:
-        import louis
-
-        return True
-
-    except ImportError:
-        return bool(find_lou_translate())
-
-
-needs_liblouis = pytest.mark.skipif(
-    not liblouis_available(),
-    reason="Liblouis with UEB tables is "
-    "not installed on this machine"
-)
-
-
-@needs_liblouis
+@pytest.mark.liblouis
 def test_translate_hello_world_g2():
 
     result = translate_ueb("hello world")

@@ -30,31 +30,6 @@ SAMPLE_IMAGE = (
 )
 
 
-def tesseract_available():
-
-    try:
-        from braille_converter.ocr_engine import (
-            configure_tesseract
-        )
-
-        import pytesseract
-
-        configure_tesseract()
-
-        pytesseract.get_tesseract_version()
-
-        return True
-
-    except Exception:
-        return False
-
-
-needs_tesseract = pytest.mark.skipif(
-    not tesseract_available(),
-    reason="Tesseract is not installed on this machine"
-)
-
-
 class FakeUpload:
 
     """Minimal stand-in for events.UploadEventArguments."""
@@ -110,7 +85,9 @@ async def test_page_renders_core_sections():
         await user.should_see("Export all")
 
 
-async def test_startup_status_is_reported():
+async def test_startup_status_is_reported(
+    tesseract_available
+):
 
     holder = {}
 
@@ -129,7 +106,7 @@ async def test_startup_status_is_reported():
             "message; failures must never be silent."
         )
 
-        if tesseract_available():
+        if tesseract_available:
 
             assert (
                 "Environment checks passed"
@@ -185,7 +162,7 @@ async def test_export_without_data_shows_error():
         user.find("Close").click()
 
 
-@needs_tesseract
+@pytest.mark.tesseract
 async def test_full_workflow_creates_all_outputs(
     tmp_path
 ):
@@ -276,7 +253,7 @@ async def test_apply_edit_requires_selection():
         user.find("Close").click()
 
 
-@needs_tesseract
+@pytest.mark.tesseract
 async def test_keyboard_selection_drives_the_editor():
 
     holder = {}
@@ -336,7 +313,7 @@ async def test_keyboard_selection_drives_the_editor():
         )
 
 
-@needs_tesseract
+@pytest.mark.tesseract
 async def test_export_blocks_when_groups_untranslated():
 
     holder = {}

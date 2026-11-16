@@ -13,12 +13,10 @@ from pathlib import Path
 import pytest
 
 from braille_converter.ocr_engine import (
-    configure_tesseract,
     recognize_characters
 )
 
 from braille_converter.translator import (
-    find_lou_translate,
     load_env_file,
     translate_ueb
 )
@@ -29,51 +27,6 @@ TEST_DIR = Path(
 
 EXPECTED_DIR = (
     TEST_DIR / "expected"
-)
-
-
-def tesseract_available():
-
-    try:
-        configure_tesseract()
-
-        import pytesseract
-
-        pytesseract.get_tesseract_version()
-
-        return True
-
-    except Exception:
-        return False
-
-
-def liblouis_available():
-
-    try:
-        import louis
-
-        return True
-
-    except ImportError:
-        pass
-
-    if find_lou_translate():
-        return True
-
-    return False
-
-
-needs_tesseract = pytest.mark.skipif(
-    not tesseract_available(),
-    reason="Tesseract is not "
-    "installed on this machine"
-)
-
-needs_liblouis = pytest.mark.skipif(
-    not liblouis_available(),
-    reason="Liblouis with UEB "
-    "tables is not installed on "
-    "this machine"
 )
 
 
@@ -107,7 +60,7 @@ def image_path(request):
     return request.param
 
 
-@needs_tesseract
+@pytest.mark.tesseract
 def test_records_match_expected(
     image_path
 ):
@@ -148,7 +101,7 @@ def test_records_match_expected(
     )
 
 
-@needs_tesseract
+@pytest.mark.tesseract
 def test_records_are_ordered(image_path):
 
     records = recognize_characters(
@@ -178,7 +131,7 @@ def test_records_are_ordered(image_path):
         )
 
 
-@needs_tesseract
+@pytest.mark.tesseract
 def test_words_join_to_tokens(image_path):
 
     records = recognize_characters(
@@ -206,7 +159,8 @@ def test_words_join_to_tokens(image_path):
         )
 
 
-@needs_liblouis
+@pytest.mark.tesseract
+@pytest.mark.liblouis
 def test_every_detected_word_translates(
     image_path
 ):

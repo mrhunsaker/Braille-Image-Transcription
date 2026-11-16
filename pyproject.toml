@@ -24,6 +24,10 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "tesseract: requires a Tesseract OCR installation",
+    "liblouis: requires Liblouis with UEB tables",
+]
 
 [project.scripts]
 braille-converter = "braille_converter.main:main"
