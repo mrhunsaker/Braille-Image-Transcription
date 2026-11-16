@@ -24,7 +24,6 @@ from braille_converter.ocr_engine import (
 )
 
 from braille_converter.translator import (
-    load_env_file,
     translate_ueb
 )
 
@@ -280,24 +279,4 @@ def test_every_detected_word_translates(
         )
 
 
-def test_env_file_is_valid():
 
-    env_path = (
-        Path(__file__)
-        .resolve()
-        .parents[1]
-        / ".env"
-    )
-
-    if not env_path.exists():
-        pytest.skip(
-            "No .env file on this "
-            "machine"
-        )
-
-    values = load_env_file()
-
-    assert values, (
-        ".env exists but loaded "
-        "no values"
-    )

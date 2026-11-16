@@ -2,6 +2,7 @@
 from pathlib import Path
 import base64
 import io
+import shutil
 import tempfile
 
 from nicegui import events, ui
@@ -26,11 +27,6 @@ from .layout import LAYOUTS
 from .braille_render import BrailleProfile
 
 from .image_pipeline import export_outputs
-
-
-UPLOAD_DIR = Path(
-    tempfile.gettempdir()
-) / "braille_converter"
 
 
 def tesseract_problems():
@@ -449,10 +445,9 @@ class ConverterApp:
         )
 
         ui.notify(
-            f"{title}: {message}",
+            title,
             type="negative",
-            close_button="Dismiss",
-            multiline=True
+            close_button="Dismiss"
         )
 
         self.error_dialog.open()
@@ -479,6 +474,8 @@ class ConverterApp:
 
     def open_image(self, event: events.UploadEventArguments):
 
+        work_dir = None
+
         try:
             data = event.content.read()
 
@@ -489,18 +486,35 @@ class ConverterApp:
 
             name = Path(event.name).name
 
-            UPLOAD_DIR.mkdir(
-                parents=True,
-                exist_ok=True
+            # One private directory per upload. Files with
+            # the same name from different users or at
+            # different times never overwrite each other,
+            # and the previous upload is removed below.
+            work_dir = Path(
+                tempfile.mkdtemp(
+                    prefix="braille-upload-"
+                )
             )
 
-            path = UPLOAD_DIR / name
+            path = work_dir / name
 
             path.write_bytes(data)
 
-            image = Image.open(path).convert("RGB")
+            # Close the file handle immediately; Windows
+            # refuses to delete a directory while a file
+            # inside it is still open.
+            with Image.open(path) as opened:
+
+                image = opened.convert("RGB")
 
         except Exception as exc:
+
+            if work_dir is not None:
+                shutil.rmtree(
+                    work_dir,
+                    ignore_errors=True
+                )
+
             self.show_error(
                 "Image load failed",
                 f"Could not load "
@@ -509,6 +523,11 @@ class ConverterApp:
             )
 
             return
+
+        previous_dir = None
+
+        if self.image_path is not None:
+            previous_dir = self.image_path.parent
 
         self.image_path = path
 
@@ -523,6 +542,21 @@ class ConverterApp:
             f"{image.width} × {image.height}px. "
             "Run OCR to extract characters."
         )
+
+        # Remove the previous upload only after the new
+        # one loaded successfully, and only directories
+        # this code created.
+        if (
+            previous_dir is not None
+            and previous_dir != work_dir
+            and previous_dir.name.startswith(
+                "braille-upload-"
+            )
+        ):
+            shutil.rmtree(
+                previous_dir,
+                ignore_errors=True
+            )
 
     def _show_preview(self, image):
 

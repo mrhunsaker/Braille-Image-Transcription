@@ -12,6 +12,7 @@ Tesseract is not installed.
 """
 
 import io
+import shutil
 from pathlib import Path
 
 import pytest
@@ -498,3 +499,52 @@ async def test_ocr_with_no_records_shows_error(
         await user.should_see(
             "OCR found no characters in this image."
         )
+
+
+async def test_each_upload_gets_a_private_temp_dir():
+    """Uploads must not collide and old files are removed."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        with app.status_label:
+
+            app.open_image(FakeUpload(SAMPLE_IMAGE))
+
+            first_dir = app.image_path.parent
+
+            first_path = app.image_path
+
+            assert first_path.exists()
+
+            app.open_image(FakeUpload(SAMPLE_IMAGE))
+
+        second_dir = app.image_path.parent
+
+        try:
+
+            assert second_dir != first_dir
+
+            assert second_dir.name.startswith(
+                "braille-upload-"
+            )
+
+            assert second_dir.exists()
+
+            assert not first_path.exists()
+
+            assert not first_dir.exists()
+
+        finally:
+
+            shutil.rmtree(
+                second_dir,
+                ignore_errors=True
+            )

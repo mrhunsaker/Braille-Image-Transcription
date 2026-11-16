@@ -1,4 +1,6 @@
 
+import os
+
 import pytest
 
 from braille_converter.translator import (
@@ -23,23 +25,71 @@ def test_translate_empty_is_empty():
     assert translate_ueb("") == ""
 
 
-def test_env_file_loads_and_validates():
+def test_env_file_loads_values(
+    tmp_path,
+    monkeypatch
+):
+    """Parsing must not depend on the machine's real .env."""
 
-    env_path = (
-        project_root() / ".env"
+    env_path = tmp_path / ".env"
+
+    env_path.write_text(
+        "# comment line\n"
+        "\n"
+        "LIBLOUIS_UEB_TABLE = /tables/custom.ctb\n"
+        "LIBLOUIS_UEB_MATH_TABLE=\n",
+        encoding="utf-8"
     )
 
-    if not env_path.exists():
-        pytest.skip(
-            "No .env file on this machine"
-        )
+    monkeypatch.delenv(
+        "LIBLOUIS_UEB_TABLE",
+        raising=False
+    )
 
-    values = load_env_file()
+    monkeypatch.delenv(
+        "LIBLOUIS_UEB_MATH_TABLE",
+        raising=False
+    )
+
+    values = load_env_file(env_path)
+
+    assert values == {
+        "LIBLOUIS_UEB_TABLE": "/tables/custom.ctb",
+        "LIBLOUIS_UEB_MATH_TABLE": ""
+    }
 
     assert (
-        values.get("LIBLOUIS_UEB_TABLE")
-        == r"C:\Liblouis\share\liblouis"
-        r"\tables\en-ueb-g2.ctb"
+        os.environ["LIBLOUIS_UEB_TABLE"]
+        == "/tables/custom.ctb"
+    )
+
+
+def test_env_file_does_not_override_environment(
+    tmp_path,
+    monkeypatch
+):
+    env_path = tmp_path / ".env"
+
+    env_path.write_text(
+        "LIBLOUIS_UEB_TABLE=/from/file.ctb\n",
+        encoding="utf-8"
+    )
+
+    monkeypatch.setenv(
+        "LIBLOUIS_UEB_TABLE",
+        "/from/environment.ctb"
+    )
+
+    values = load_env_file(env_path)
+
+    assert (
+        values["LIBLOUIS_UEB_TABLE"]
+        == "/from/file.ctb"
+    )
+
+    assert (
+        os.environ["LIBLOUIS_UEB_TABLE"]
+        == "/from/environment.ctb"
     )
 
 

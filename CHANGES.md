@@ -164,8 +164,26 @@ and this project adheres to
   refusing), a zero-record OCR run opening an error
   dialog, empty/whitespace table settings falling back
   to the defaults, and template.env being comment-only.
+- Tests for upload isolation: each upload gets a private
+  temporary directory and the previous one is removed.
+- Machine-independent .env tests: parsing, whitespace
+  handling, blank values, and OS environment precedence are
+  checked against a temporary .env instead of asserting the
+  content of the developer's own file (the old test hardcoded
+  a C:\Liblouis path and only ran where that file existed).
 
 ### Changed
+
+- Error toasts now announce only the error title. The full
+  explanation remains in the modal dialog (role=alert) and the
+  aria-live status region, so a long multi-paragraph toast no longer
+  duplicates or obscures the dialog text for screen-reader users.
+- Uploaded images are written to a private temporary directory per
+  upload instead of a shared fixed path. Same-named uploads can no
+  longer overwrite each other, the image file handle is closed before
+  anything else touches the file (Windows would otherwise refuse to
+  delete it), and the previous upload's directory is removed after a
+  new image loads successfully.
 
 - .gitignore now ignores the `.idea/` JetBrains IDE directory.
 - The previously tracked `.idea/` files are untracked from the index
