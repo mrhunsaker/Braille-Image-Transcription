@@ -24,7 +24,7 @@ sys.path.insert(
     str(ROOT / "src")
 )
 
-from braille_converter.ocr_engine import (
+from braille_converter.ocr_engine import (  # noqa: E402
     configure_tesseract,
     recognize_characters
 )

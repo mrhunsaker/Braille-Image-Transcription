@@ -87,10 +87,26 @@ On startup the app validates the environment (Tesseract,
 Liblouis, .env) and shows a dialog listing anything missing,
 with instructions for fixing it.
 
-Optional native window mode (requires pywebview):
+Optional native window mode (requires the `native` extra):
 
-    set BRAILLE_CONVERTER_NATIVE=1
-    uv run braille-converter
+    uv sync --extra native
+    uv run braille-converter --native
+
+`set BRAILLE_CONVERTER_NATIVE=1` has the same effect.
+
+## Command-line conversion
+
+For batch work or scripted use, the same pipeline runs without the
+GUI:
+
+    uv run braille-converter convert worksheet.jpg --out braille_output
+    uv run braille-converter convert scans/ --out braille_output --layout full
+    uv run braille-converter convert equation.png --math
+
+Each image writes the four output files listed below. The command
+prints every written path, reports each failed image on stderr, and
+exits 1 if any image failed (2 for a missing input path). Run
+`uv run braille-converter --help` for all options.
 
 ## Using the app with a screen reader
 
@@ -113,6 +129,10 @@ Status changes are announced through an aria-live region, and
 errors appear in a modal dialog with an autofocused Close button
 (Enter dismisses it; focus returns to the control that failed).
 
+Before a release that changes the GUI, run the
+[manual accessibility test](docs/manual-accessibility-test.md) with
+NVDA or JAWS and record the result in the pull request.
+
 ## Output files
 
 The application produces:
@@ -126,6 +146,20 @@ The application produces:
 
     uv run pytest
 
+The suite skips OCR tests when Tesseract is missing, translation
+tests when Liblouis is missing, and the exact-count comparison when
+the installed Tesseract version differs from the recorded version.
+CI installs both tools.
+
+    uv run ruff check .
+
+## Packaging
+
+There is no supported one-file build yet. NiceGUI applications need
+a browser or the optional native window; see the NiceGUI packaging
+documentation. The `convert` subcommand is the supported way to run
+the pipeline unattended.
+
 ## Community files
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to set up and
@@ -138,14 +172,6 @@ The application produces:
 - [SECURITY.md](SECURITY.md) — how to report vulnerabilities
 - [SUPPORT.md](SUPPORT.md) — where to get help
 - [CHANGES.md](CHANGES.md) — changelog
-
-## PyInstaller
-
-The previous tkinter-based PyInstaller instructions no longer
-apply. NiceGUI applications package differently; see the
-NiceGUI PyInstaller documentation for the current
-recommended approach. A verified spec file for this project
-has not yet been produced.
 
 ## Important limitations
 

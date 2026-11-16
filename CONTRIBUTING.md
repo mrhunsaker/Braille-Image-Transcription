@@ -55,6 +55,9 @@ accessibility in mind with every change.
   announced through an aria-live region.
 - Errors must never fail silently; they must surface in an
   accessible dialog with actionable text.
+- Run [docs/manual-accessibility-test.md](docs/manual-accessibility-test.md)
+  with NVDA or JAWS before a release that changes the GUI, and
+  include the result in the pull request.
 
 ## Reporting bugs
 

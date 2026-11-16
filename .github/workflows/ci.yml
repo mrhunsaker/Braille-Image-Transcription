@@ -44,5 +44,8 @@ jobs:
           tesseract --version
           lou_translate --version || true
 
+      - name: Lint
+        run: uv run ruff check .
+
       - name: Run tests
         run: uv run pytest -q -rs

@@ -18,7 +18,11 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    "ruff>=0.6",
     "pyinstaller>=6.10",
+]
+native = [
+    "pywebview>=5.0",
 ]
 
 [tool.pytest.ini_options]
@@ -28,6 +32,12 @@ markers = [
     "tesseract: requires a Tesseract OCR installation",
     "liblouis: requires Liblouis with UEB tables",
 ]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
 
 [project.scripts]
 braille-converter = "braille_converter.main:main"

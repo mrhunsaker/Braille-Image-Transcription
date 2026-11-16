@@ -176,3 +176,71 @@ def test_convert_writes_all_outputs(
     )
 
     assert len(written) == 4
+
+
+def test_launch_gui_passes_native_flag(monkeypatch):
+
+    import nicegui
+
+    from braille_converter.main import launch_gui
+
+    seen = {}
+
+    monkeypatch.setattr(
+        nicegui.ui,
+        "run",
+        lambda **kwargs: seen.update(kwargs)
+    )
+
+    assert launch_gui(native=True) == 0
+
+    assert seen["native"] is True
+
+    assert seen["show"] is False
+
+
+def test_native_environment_variable(monkeypatch):
+
+    import nicegui
+
+    from braille_converter.main import launch_gui
+
+    seen = {}
+
+    monkeypatch.setattr(
+        nicegui.ui,
+        "run",
+        lambda **kwargs: seen.update(kwargs)
+    )
+
+    monkeypatch.setenv(
+        "BRAILLE_CONVERTER_NATIVE",
+        "1"
+    )
+
+    assert launch_gui() == 0
+
+    assert seen["native"] is True
+
+
+def test_native_extra_is_declared():
+
+    import tomllib
+
+    config = tomllib.loads(
+        (
+            Path(__file__).parents[1]
+            / "pyproject.toml"
+        ).read_text(encoding="utf-8")
+    )
+
+    extras = config["project"][
+        "optional-dependencies"
+    ]
+
+    assert "native" in extras
+
+    assert any(
+        requirement.startswith("pywebview")
+        for requirement in extras["native"]
+    )

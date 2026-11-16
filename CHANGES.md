@@ -187,6 +187,17 @@ and this project adheres to
   headless conversion, and the translation rules (group order,
   math selection, single Braille string per group, loud empty
   translations).
+- `[native]` optional dependency group (pywebview) and tests proving
+  `--native` and BRAILLE_CONVERTER_NATIVE=1 reach NiceGUI's native
+  window mode. Launching a real window is covered by the manual
+  accessibility checklist, not by CI.
+- docs/manual-accessibility-test.md: a keyboard-only NVDA/JAWS
+  checklist for startup, the full workflow, error dialogs, focus
+  return, and native window mode. Linked from README and
+  CONTRIBUTING.
+- Ruff linting (rules E4, E7, E9, F) in CI and as a dev dependency.
+  The existing code passes; two unused imports and two intentional
+  script path-bootstrapping imports were adjusted.
 
 ### Changed
 
@@ -206,6 +217,9 @@ and this project adheres to
 - gui.translate_all now calls pipeline.translate_records instead of
   duplicating the grouping and math-selection logic (behavior
   unchanged; the existing GUI workflow test still covers it).
+- README documents the CLI, the native extra install command, and
+  the manual accessibility checklist. The unverified PyInstaller
+  section was replaced with an honest packaging note.
 
 - .gitignore now ignores the `.idea/` JetBrains IDE directory.
 - The previously tracked `.idea/` files are untracked from the index

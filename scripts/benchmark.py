@@ -19,11 +19,11 @@ sys.path.insert(
     str(ROOT / "src")
 )
 
-from braille_converter.ocr_engine import (
+from braille_converter.ocr_engine import (  # noqa: E402
     recognize_characters
 )
 
-from braille_converter.translator import (
+from braille_converter.translator import (  # noqa: E402
     translate_ueb,
     TranslationError
 )
