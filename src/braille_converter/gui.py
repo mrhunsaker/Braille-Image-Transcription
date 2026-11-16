@@ -249,10 +249,11 @@ class ConverterApp:
         self.table = ui.table(
             columns=columns,
             rows=[],
-            row_key="id"
+            row_key="id",
+            selection="single"
         ).props(
-            "selection=single flat bordered "
-            "dense wrap-cells"
+            'aria-label="OCR character review results" '
+            "flat bordered dense wrap-cells"
         ).classes("w-full")
 
         self.table.on_select(
@@ -269,6 +270,21 @@ class ConverterApp:
             ui.label(
                 "Selected Character"
             ).classes("text-h6")
+
+            # Primary, keyboard-only way to choose a
+            # record. Typing filters, arrows navigate,
+            # Enter selects. Clicking a table row also
+            # updates this control.
+            self.record_select = ui.select(
+                options=[],
+                label="Record ID",
+                value=None,
+                with_input=True,
+                on_change=self.select_record_by_id
+            ).props(
+                'aria-label="Choose a record '
+                'by its ID to edit"'
+            ).classes("w-full")
 
             self.text_input = ui.input(
                 label="OCR text",
@@ -615,6 +631,74 @@ class ConverterApp:
 
         self.table.update()
 
+        # Keep the keyboard selector in sync with
+        # the records currently on screen.
+        ids = [record.id for record in self.records]
+
+        current = self.record_select.value
+
+        self.record_select.set_options(
+            ids,
+            value=(
+                current if current in ids else None
+            )
+        )
+
+    def _load_editor(self, record):
+        """Fill the editor fields from a record."""
+
+        self.text_input.set_value(record.text)
+
+        self.kind_select.set_value(record.kind)
+
+        self.approved_checkbox.set_value(
+            record.approved
+        )
+
+    def select_record_by_id(self, event):
+        """Keyboard selection: load the chosen record."""
+
+        record_id = event.value
+
+        if record_id is None:
+            return
+
+        record = next(
+            (
+                r for r in self.records
+                if r.id == record_id
+            ),
+            None
+        )
+
+        if record is None:
+            return
+
+        self._load_editor(record)
+
+        row = next(
+            (
+                row for row in self.table.rows
+                if row["id"] == record_id
+            ),
+            None
+        )
+
+        if row is not None:
+            self.table.set_selection([row])
+
+        self.status_label.set_text(
+            f"Editing record {record_id}: "
+            f"{record.text!r}, "
+            f"confidence "
+            + (
+                f"{record.confidence:.2f}"
+                if record.confidence is not None
+                else "unknown"
+            )
+            + "."
+        )
+
     def select_record(self, event):
 
         selected = event.args.get(
@@ -636,33 +720,26 @@ class ConverterApp:
         )
 
         if record:
-            self.text_input.set_value(
-                record.text
-            )
+            self._load_editor(record)
 
-            self.kind_select.set_value(
-                record.kind
-            )
-
-            self.approved_checkbox.set_value(
-                record.approved
+            self.record_select.set_value(
+                record.id
             )
 
     def apply_edit(self):
 
-        selected = self.table.selected
+        record_id = self.record_select.value
 
-        if not selected:
+        if record_id is None:
             self.show_error(
                 "No record selected",
-                "Select a row in the OCR "
-                "Character Review table first.",
+                "Choose a Record ID in the "
+                "editor, or select a row in the "
+                "OCR Character Review table.",
                 source=self.run_button
             )
 
             return
-
-        record_id = selected[0]["id"]
 
         for record in self.records:
 
@@ -684,9 +761,16 @@ class ConverterApp:
 
         self.populate_table()
 
-        self.table.set_selection(
-            [selected[0]]
+        row = next(
+            (
+                row for row in self.table.rows
+                if row["id"] == record_id
+            ),
+            None
         )
+
+        if row is not None:
+            self.table.set_selection([row])
 
         self.status_label.set_text(
             f"Updated record {record_id}."

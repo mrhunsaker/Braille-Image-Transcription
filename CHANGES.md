@@ -13,9 +13,10 @@ and this project adheres to
 - tests/test_gui.py: GUI test suite driving the real NiceGUI app in
   NiceGUI's user simulation. Covers page rendering, startup status
   reporting, the no-image and nothing-to-export error dialogs, the
-  no-record-selected dialog, and the full workflow (load image, run
-  OCR, translate, export) asserting all four output formats are
-  written. Six tests.
+  no-record-selected dialog, export blocking before translation, the
+  full workflow (load image, run OCR, translate, export) asserting all
+  four output formats are written, and keyboard record selection
+  driving the editor and table. Eight tests.
 - pytest-asyncio dev dependency and pytest configuration
   (asyncio_mode = auto) so the GUI simulation tests can run.
 - End-to-end verification of the export pipeline: all four artifacts
@@ -64,7 +65,16 @@ and this project adheres to
   BRAILLE_CONVERTER_NATIVE=1 to try native-window mode (requires
   pywebview).
 - Accessible OCR review table (ui.table) with sortable, labelled
-  columns for id, text, kind, confidence, approved, box, and braille.
+  columns for id, text, kind, confidence, approved, box, and braille,
+  plus an aria-label naming the table.
+- Keyboard-only record selection: a "Record ID" select (typed
+  filtering, arrow navigation, Enter) in the Selected Character editor
+  is the primary way to choose a record; choosing an ID loads the
+  editor, highlights the matching table row, and announces the record
+  and its confidence in the status region. Clicking a table row also
+  updates this control, so mouse and keyboard stay in sync. The
+  Quasar data table's own row selection is not reliably reachable by
+  keyboard, which is why this control exists.
 - Modal error dialog for every failure (image load, OCR, translation,
   export, startup validation): role=alert, aria-live=assertive
   message, autofocus Close button (Enter), Escape to dismiss, and
@@ -147,9 +157,10 @@ and this project adheres to
 - main.py launches the NiceGUI app (ui.run, port 8787) instead of
   creating a tkinter root window. run_app.py is unchanged and still
   works.
-- Export now blocks (with an explanatory dialog) while approved
-  records are untranslated, instead of asking whether to export
-  anyway. This prevents silently producing outputs missing Braille.
+- Export now blocks (with an explanatory dialog) while approved word
+  groups are untranslated, instead of asking whether to export anyway.
+  This prevents silently producing outputs missing Braille. The
+  message states how many approved words are untranslated.
 - All controls carry multi-word aria-labels via quoted props; plain
   props('aria-label=Two words') is parsed by NiceGUI as several
   boolean props and truncates the label to its first word.

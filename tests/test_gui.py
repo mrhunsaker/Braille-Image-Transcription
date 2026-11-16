@@ -274,3 +274,95 @@ async def test_apply_edit_requires_selection():
         await user.should_see("No record selected")
 
         user.find("Close").click()
+
+
+@needs_tesseract
+async def test_keyboard_selection_drives_the_editor():
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        with app.status_label:
+
+            app.open_image(FakeUpload(SAMPLE_IMAGE))
+
+            app.run_ocr()
+
+        assert app.records
+
+        target = app.records[0]
+
+        # The Record ID control is the keyboard path;
+        # choosing an ID loads and applies the edits.
+        app.record_select.set_value(target.id)
+
+        assert app.text_input.value == target.text
+
+        assert app.kind_select.value == target.kind
+
+        assert app.status_label.text.startswith(
+            "Editing record"
+        )
+
+        app.text_input.set_value("Z")
+
+        app.kind_select.set_value("math")
+
+        app.apply_edit()
+
+        assert target.text == "Z"
+
+        assert target.kind == "math"
+
+        row = next(
+            row for row in app.table.rows
+            if row["id"] == target.id
+        )
+
+        assert row["text"] == "Z"
+
+        assert row["kind"] == "math"
+
+        assert (
+            f"Updated record {target.id}"
+            in app.status_label.text
+        )
+
+
+@needs_tesseract
+async def test_export_blocks_when_groups_untranslated():
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        with app.status_label:
+
+            app.open_image(FakeUpload(SAMPLE_IMAGE))
+
+            app.run_ocr()
+
+            # Export before translating must refuse,
+            # naming the number of untranslated words.
+            app.export()
+
+            assert "Untranslated records" in (
+                app.status_label.text
+            )
+
+            assert "approved word(s)" in (
+                app.status_label.text
+            )

@@ -22,6 +22,9 @@ containing text and mathematical notation into Braille.
 - Tactile-dot SVG export.
 - Startup validation with explicit error dialogs for missing
   dependencies (no silent failures).
+- Full keyboard operation with screen-reader semantics (labelled
+  controls, aria-live status, accessible error dialogs, and a
+  keyboard-operable record selector).
 
 ## Requirements
 
@@ -88,6 +91,27 @@ Optional native window mode (requires pywebview):
 
     set BRAILLE_CONVERTER_NATIVE=1
     uv run braille-converter
+
+## Using the app with a screen reader
+
+Every control is reachable with Tab and Shift+Tab and has a
+spoken label. The workflow is:
+
+1. Tab to "Open image" and press Enter to choose a file.
+2. Tab to "Run OCR" and press Enter.
+3. Tab to "Record ID" in the Selected Character editor. Type part
+   of an ID to filter, use the arrow keys to navigate, and press
+   Enter to load the record. The editor fields and the matching
+   table row update, and the status region announces the record.
+4. Edit "OCR text" and "Classification", then activate "Apply
+   changes".
+5. Tab to "Translate all" and press Enter.
+6. Set the "Output folder" and "Page layout", then activate
+   "Export all".
+
+Status changes are announced through an aria-live region, and
+errors appear in a modal dialog with an autofocused Close button
+(Enter dismisses it; focus returns to the control that failed).
 
 ## Output files
 
