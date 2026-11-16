@@ -6,7 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-16
+
+First release with the screen-reader-oriented NiceGUI interface, a
+headless `convert` command, a test suite that skips only when a tool
+is genuinely unavailable, and a CI workflow that runs the OCR and
+translation checks. Liblouis is invoked correctly (`--forward` with
+`unicode.dis`), failures surface in modal dialogs instead of being
+silent, and the pipeline is covered by integration, GUI, CLI, and
+unit tests.
 
 ### Added
 
