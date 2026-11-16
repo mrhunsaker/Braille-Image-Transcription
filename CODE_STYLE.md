@@ -71,6 +71,11 @@ def detect_words(image):
   tests/test_files/expected/ via
   `uv run python scripts/generate_expected.py` when OCR
   behavior intentionally changes.
+- GUI behavior changes are covered in tests/test_gui.py,
+  which drives the real NiceGUI app in a simulation and
+  asserts through visible UI state (labels, dialogs, table
+  rows). Tests that need Tesseract or Liblouis skip with a
+  clear reason.
 
 ## Changelog
 

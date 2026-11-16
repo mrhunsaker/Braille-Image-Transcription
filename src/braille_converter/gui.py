@@ -533,10 +533,7 @@ class ConverterApp:
             self.preview_card.clear()
 
             ui.image(
-                src=(
-                    f"data:image/png;base64,"
-                    f"{encoded}"
-                )
+                f"data:image/png;base64,{encoded}"
             ).props(f'alt="{alt}"')
 
     def run_ocr(self):
@@ -782,16 +779,36 @@ class ConverterApp:
 
             return
 
-        if any(
-            not record.braille
-            for record in self.records
-            if record.approved
-        ):
+        # Braille is stored once per word group (on its
+        # first record); the export renders one string per
+        # group. Validate per group, not per record.
+        approved_groups = {}
+
+        for record in self.records:
+
+            if not record.approved:
+                continue
+
+            approved_groups.setdefault(
+                record.group_id,
+                []
+            ).append(record)
+
+        untranslated = [
+            group
+            for group in approved_groups.values()
+            if not any(
+                record.braille
+                for record in group
+            )
+        ]
+
+        if untranslated:
             self.show_error(
                 "Untranslated records",
-                "Some approved records have "
-                "not been translated. Run "
-                "'Translate all' before "
+                f"{len(untranslated)} approved "
+                "word(s) have not been translated. "
+                "Run 'Translate all' before "
                 "exporting.",
                 source=self.export_button
             )

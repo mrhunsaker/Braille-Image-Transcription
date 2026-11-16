@@ -10,10 +10,22 @@ and this project adheres to
 
 ### Added
 
+- tests/test_gui.py: GUI test suite driving the real NiceGUI app in
+  NiceGUI's user simulation. Covers page rendering, startup status
+  reporting, the no-image and nothing-to-export error dialogs, the
+  no-record-selected dialog, and the full workflow (load image, run
+  OCR, translate, export) asserting all four output formats are
+  written. Six tests.
+- pytest-asyncio dev dependency and pytest configuration
+  (asyncio_mode = auto) so the GUI simulation tests can run.
+- End-to-end verification of the export pipeline: all four artifacts
+  (PNG, PDF, JSON, tactile SVG) were produced from a test image and
+  checked numerically (non-blank PNG, SVG dot circles, valid JSON
+  records, PDF header).
 - template.env (committed through the git index during task 3):
-  a tracked template for the git-ignored .env file. Note that
-  LIBLOUIS_NEMETH_TABLE is listed in the template but is not
-  read by the current code.
+  a tracked template for the git-ignored .env file. The values are
+  blank so the template is safe to commit; LIBLOUIS_NEMETH_TABLE is
+  listed in the template but is not read by the current code.
 - Community and repository files for GitHub: CONTRIBUTORS.md,
   CONTRIBUTING.md, CODE_STYLE.md (codifying the actual style of
   this codebase), CODE_OF_CONDUCT.md (Contributor Covenant
@@ -118,6 +130,8 @@ and this project adheres to
 ### Changed
 
 - .gitignore now ignores the `.idea/` JetBrains IDE directory.
+- The previously tracked `.idea/` files are untracked from the index
+  (local copies are kept) so the ignore rule is effective.
 - translator.py now produces real Unicode Braille. The previous
   Liblouis CLI call was broken in three silent ways: it omitted the
   `--forward` flag (lou_translate echoed the input back unchanged),
@@ -142,6 +156,16 @@ and this project adheres to
 
 ### Fixed
 
+- Image preview crashed with TypeError on NiceGUI 4: ui.image takes the
+  source positionally in that version, so passing src= raised
+  "unexpected keyword argument 'src'". The preview is now built with a
+  positional data URI.
+- Export always refused with "Untranslated records" after a successful
+  "Translate all". Braille is stored once per word group (on the group's
+  first record) because exports render one Braille string per group,
+  but the export validation demanded Braille on every approved record.
+  Validation now checks per approved word group, so translated content
+  can be exported.
 - `.env` was tracked in git despite the `.gitignore` rule (it was
   added in the initial commit before the ignore rule existed). It is
   now untracked from the index only; the local file is untouched, and
