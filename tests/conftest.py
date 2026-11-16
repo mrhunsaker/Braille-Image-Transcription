@@ -13,11 +13,21 @@ machine. Tests needing both markers (for example OCR plus
 translation) must declare both.
 """
 
+from functools import lru_cache
+from pathlib import Path
+
 import pytest
 
 
-def tesseract_installed():
-    """True when pytesseract can reach a Tesseract binary."""
+@lru_cache(maxsize=1)
+def tesseract_version():
+    """Return the Tesseract version string, or None.
+
+    Cached because every call spawns the binary. Expected
+    OCR data is version specific (see
+    tests/test_files/expected/), so tests compare this
+    string with the version recorded next to the data.
+    """
 
     try:
         import pytesseract
@@ -28,12 +38,18 @@ def tesseract_installed():
 
         configure_tesseract()
 
-        pytesseract.get_tesseract_version()
-
-        return True
+        return str(
+            pytesseract.get_tesseract_version()
+        )
 
     except Exception:
-        return False
+        return None
+
+
+def tesseract_installed():
+    """True when pytesseract can reach a Tesseract binary."""
+
+    return tesseract_version() is not None
 
 
 def liblouis_installed():
@@ -101,3 +117,40 @@ def liblouis_available():
     """Boolean for tests that branch on Liblouis."""
 
     return liblouis_installed()
+
+
+@pytest.fixture(scope="session")
+def tesseract_version_string():
+    """Tesseract version recorded in expected data."""
+
+    return tesseract_version()
+
+
+@pytest.fixture(scope="session")
+def ocr_records():
+    """Run OCR at most once per image per session.
+
+    The pipeline tests share one OCR result per image
+    instead of re-running Tesseract for every metric.
+    Returns a callable taking an image path.
+    """
+
+    from braille_converter.ocr_engine import (
+        recognize_characters
+    )
+
+    cache = {}
+
+    def records_for(image_path):
+
+        key = str(Path(image_path).resolve())
+
+        if key not in cache:
+
+            cache[key] = recognize_characters(
+                Path(image_path)
+            )
+
+        return cache[key]
+
+    return records_for

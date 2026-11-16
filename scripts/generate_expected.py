@@ -25,8 +25,27 @@ sys.path.insert(
 )
 
 from braille_converter.ocr_engine import (
+    configure_tesseract,
     recognize_characters
 )
+
+
+def tesseract_version():
+
+    configure_tesseract()
+
+    import pytesseract
+
+    return str(
+        pytesseract.get_tesseract_version()
+    )
+
+
+# Exact counts are only comparable against the same
+# Tesseract version. The floor below guards against a
+# catastrophic OCR regression on any version while
+# tolerating normal version-to-version variance.
+MIN_WORD_RATIO = 0.6
 
 
 def expected_for(image_path):
@@ -69,7 +88,14 @@ def expected_for(image_path):
             "scripts/generate_expected.py; "
             "human review pending"
         ),
+        "tesseract_version": (
+            tesseract_version()
+        ),
         "word_count": len(words),
+        "min_word_count": max(
+            1,
+            int(len(words) * MIN_WORD_RATIO)
+        ),
         "record_count": len(records),
         "words": words
     }

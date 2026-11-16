@@ -136,6 +136,27 @@ and this project adheres to
   initially classified as math; everything else as literary.
   The reviewer can still change the classification of any
   record.
+- CI now installs Tesseract (tesseract-ocr, tesseract-ocr-eng)
+  as well as Liblouis, so OCR tests actually run instead of
+  being skipped. The workflow also pins uv to the committed
+  lockfile (uv sync --frozen), caches uv downloads, prints
+  tool versions, limits job permissions to read-only, cancels
+  superseded runs, and has a 20-minute timeout.
+- Expected OCR data now records the Tesseract version and a
+  min_word_count floor. The exact record/word-count test runs
+  only when the installed Tesseract matches the recorded
+  version (counts are version specific); the floor test and
+  the other checks run on any version, so a catastrophic OCR
+  regression still fails CI.
+- Version-independent pipeline tests: deterministic output
+  (same image processed twice gives identical records) and a
+  minimum word-group count per image derived from the expected
+  data (60% of the recorded count).
+- Session-scoped OCR cache fixture in tests/conftest.py: each
+  image is processed once per test run and the result is
+  shared by the metrics tests. The full suite runs more checks
+  in less time (about 17 s for 61 tests on the reference
+  machine).
 
 ### Changed
 

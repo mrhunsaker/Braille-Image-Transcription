@@ -29,7 +29,13 @@ accessibility in mind with every change.
        uv run pytest
 
    Tests that need Tesseract or Liblouis skip with a clear
-   reason when the tools are missing.
+   reason when the tools are missing. The test that compares
+   exact OCR counts also skips when the installed Tesseract
+   version differs from the version recorded in
+   `tests/test_files/expected/`; run
+   `uv run python scripts/generate_expected.py` after an
+   intentional OCR change to refresh that data. CI installs
+   both tools.
 
 ## Development workflow
 
