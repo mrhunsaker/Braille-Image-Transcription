@@ -120,7 +120,9 @@ def test_records_match_expected(
             f"Expected data was recorded "
             f"with Tesseract {recorded}; "
             f"this machine has "
-            f"{tesseract_version_string}"
+            f"{tesseract_version_string}. "
+            "Run scripts/generate_expected.py "
+            "to refresh the expected data."
         )
 
     records = ocr_records(image_path)

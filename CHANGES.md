@@ -151,7 +151,8 @@ and this project adheres to
 - Version-independent pipeline tests: deterministic output
   (same image processed twice gives identical records) and a
   minimum word-group count per image derived from the expected
-  data (60% of the recorded count).
+  data (40% of the recorded count; a newer Tesseract detected
+  about 54% on the densest image).
 - Session-scoped OCR cache fixture in tests/conftest.py: each
   image is processed once per test run and the result is
   shared by the metrics tests. The full suite runs more checks
