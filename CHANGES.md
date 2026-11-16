@@ -157,6 +157,12 @@ and this project adheres to
   shared by the metrics tests. The full suite runs more checks
   in less time (about 17 s for 61 tests on the reference
   machine).
+- Tests for the review workflow without needing OCR:
+  uploader accessible name and image filter, editing a
+  word clearing that group's Braille (and export then
+  refusing), a zero-record OCR run opening an error
+  dialog, empty/whitespace table settings falling back
+  to the defaults, and template.env being comment-only.
 
 ### Changed
 
@@ -218,3 +224,27 @@ and this project adheres to
   collection hook turns a missing tool into a skip with a clear reason.
   A test that needs both tools declares both markers, so this class of
   bug cannot recur silently.
+- Editing a record left stale Braille in place: apply_edit changed the
+  text or kind but kept the old translation, so export could write
+  Braille for text that no longer existed. Editing any record now
+  clears that word group's Braille, says so in the status region, and
+  export refuses until the word is translated again. A different word
+  group keeps its translation.
+- apply_edit also reported "Updated record N" when N was not in the
+  current results. It now opens a "Record not found" dialog and changes
+  nothing.
+- An empty or whitespace-only LIBLOUIS_UEB_TABLE or
+  LIBLOUIS_UEB_MATH_TABLE value produced an empty table name instead of
+  falling back to the default table. get_table now treats a blank value
+  as "use the default" (en-ueb-g2.ctb or en-ueb-math.ctb).
+- template.env contained three blank assignments, so copying it to .env
+  silently disabled both table defaults. It now contains commented-out
+  examples only and documents LOU_TRANSLATE_CMD and TESSERACT_CMD.
+- The image uploader had no visible label and relied on an aria-label
+  that landed on its wrapper rather than its file selection control. It
+  now carries label="Choose image file" plus the aria-label, and
+  accept="image/*" so only images can be selected.
+- OCR that detected zero characters reported success ("OCR found 0
+  records") and left the user with an empty table. It now opens an
+  error dialog explaining likely causes (blur, orientation, missing
+  English language data) and the status region keeps the failure text.

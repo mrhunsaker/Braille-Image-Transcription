@@ -146,9 +146,11 @@ class ConverterApp:
             ).props("id=upload-heading")
 
             self.upload = ui.upload(
+                label="Choose image file",
                 on_upload=self.open_image,
                 auto_upload=True
             ).props(
+                'accept="image/*" '
                 'aria-label="Choose an '
                 'image file to open"'
             ).classes("max-w-[300px]")
@@ -584,6 +586,20 @@ class ConverterApp:
 
         self.populate_table()
 
+        if not self.records:
+            self.show_error(
+                "No characters found",
+                "OCR found no characters in this "
+                "image. Check that the image is "
+                "sharp, correctly oriented, and "
+                "that English Tesseract language "
+                "data is installed "
+                "(tesseract-ocr-eng).",
+                source=self.run_button
+            )
+
+            return
+
         self.status_label.set_text(
             f"OCR found {len(self.records)} "
             "records. Review them in the "
@@ -725,6 +741,32 @@ class ConverterApp:
                 record.id
             )
 
+    def clear_group_braille(self, group_id):
+        """Drop Braille that no longer matches the text.
+
+        Braille is derived from a word group's text and
+        kind, so editing any record in the group makes
+        the stored string stale. Returns True when
+        something was cleared.
+        """
+
+        cleared = False
+
+        if not group_id:
+            return cleared
+
+        for record in self.records:
+
+            if record.group_id != group_id:
+                continue
+
+            if record.braille:
+                cleared = True
+
+            record.braille = ""
+
+        return cleared
+
     def apply_edit(self):
 
         record_id = self.record_select.value
@@ -740,23 +782,39 @@ class ConverterApp:
 
             return
 
+        edited = None
+
         for record in self.records:
 
             if record.id == record_id:
 
-                record.text = (
-                    self.text_input.value
-                )
-
-                record.kind = (
-                    self.kind_select.value
-                )
-
-                record.approved = (
-                    self.approved_checkbox.value
-                )
+                edited = record
 
                 break
+
+        if edited is None:
+            self.show_error(
+                "Record not found",
+                f"Record {record_id} is no longer "
+                "in the current OCR results. "
+                "Run OCR again or choose another "
+                "Record ID.",
+                source=self.run_button
+            )
+
+            return
+
+        edited.text = self.text_input.value
+
+        edited.kind = self.kind_select.value
+
+        edited.approved = (
+            self.approved_checkbox.value
+        )
+
+        stale = self.clear_group_braille(
+            edited.group_id
+        )
 
         self.populate_table()
 
@@ -771,9 +829,17 @@ class ConverterApp:
         if row is not None:
             self.table.set_selection([row])
 
-        self.status_label.set_text(
-            f"Updated record {record_id}."
-        )
+        message = f"Updated record {record_id}."
+
+        if stale:
+            message += (
+                " Braille for that word was "
+                "cleared because the text "
+                "changed; run 'Translate all' "
+                "again before export."
+            )
+
+        self.status_label.set_text(message)
 
     def translate_all(self):
 

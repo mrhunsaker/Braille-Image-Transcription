@@ -2,6 +2,7 @@
 import pytest
 
 from braille_converter.translator import (
+    get_table,
     translate_ueb,
     load_env_file,
     project_root,
@@ -88,3 +89,70 @@ def test_missing_table_path_is_loud(
         raise AssertionError(
             "Missing table was accepted silently."
         )
+
+
+def test_empty_env_table_uses_default(monkeypatch):
+    """An empty .env value must not disable the default."""
+
+    monkeypatch.setenv("LIBLOUIS_UEB_TABLE", "")
+
+    assert get_table() == "en-ueb-g2.ctb"
+
+
+def test_whitespace_math_table_uses_default(
+    monkeypatch
+):
+
+    monkeypatch.setenv(
+        "LIBLOUIS_UEB_MATH_TABLE",
+        "   "
+    )
+
+    assert (
+        get_table(math_mode=True)
+        == "en-ueb-math.ctb"
+    )
+
+
+def test_configured_table_overrides_default(
+    monkeypatch
+):
+
+    monkeypatch.setenv(
+        "LIBLOUIS_UEB_TABLE",
+        "/tmp/custom.ctb"
+    )
+
+    assert get_table() == "/tmp/custom.ctb"
+
+
+def test_template_env_is_comments_only():
+
+    template = project_root() / "template.env"
+
+    assert template.exists(), (
+        "template.env is missing; it documents "
+        "the supported .env settings."
+    )
+
+    text = template.read_text(
+        encoding="utf-8"
+    )
+
+    # Every assignment is commented out, so copying
+    # the template verbatim cannot set a blank value.
+    for line in text.splitlines():
+
+        stripped = line.strip()
+
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        raise AssertionError(
+            "template.env has an active setting: "
+            f"{line!r}"
+        )
+
+    assert "LIBLOUIS_UEB_TABLE" in text
+
+    assert load_env_file(template) == {}

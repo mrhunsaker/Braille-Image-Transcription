@@ -109,14 +109,22 @@ def get_table(math_mode=False):
     load_env_file()
 
     if math_mode:
-        return os.environ.get(
-            "LIBLOUIS_UEB_MATH_TABLE",
-            "en-ueb-math.ctb"
-        )
 
-    return os.environ.get(
-        "LIBLOUIS_UEB_TABLE",
-        "en-ueb-g2.ctb"
+        key = "LIBLOUIS_UEB_MATH_TABLE"
+
+        default = "en-ueb-math.ctb"
+
+    else:
+
+        key = "LIBLOUIS_UEB_TABLE"
+
+        default = "en-ueb-g2.ctb"
+
+    # An empty or whitespace-only value means "use the
+    # default", not "pass an empty table name".
+    return (
+        os.environ.get(key, "").strip()
+        or default
     )
 
 

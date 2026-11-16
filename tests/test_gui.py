@@ -18,7 +18,11 @@ import pytest
 
 from nicegui.testing import user_simulation
 
+from braille_converter import gui as gui_module
+
 from braille_converter.gui import ConverterApp
+
+from braille_converter.models import OCRRecord
 
 TEST_DIR = Path(__file__).parent / "test_files"
 
@@ -343,3 +347,154 @@ async def test_export_blocks_when_groups_untranslated():
             assert "approved word(s)" in (
                 app.status_label.text
             )
+
+
+async def test_upload_has_accessible_name_and_accept_filter():
+    """The uploader needs a name and an image filter.
+
+    Quasar names its hidden file input generically, so
+    the uploader itself must carry a visible label and
+    an aria-label.
+    """
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        assert app.upload.label == "Choose image file"
+
+        assert app.upload.props.get(
+            "aria-label"
+        ) == "Choose an image file to open"
+
+        assert app.upload.props.get(
+            "accept"
+        ) == "image/*"
+
+        await user.should_see("Open image")
+
+
+async def test_editing_word_clears_stale_braille():
+    """An edit must invalidate Braille derived from old text."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        app.records = [
+            OCRRecord(
+                id=1,
+                text="a",
+                x1=0,
+                y1=0,
+                x2=5,
+                y2=5,
+                group_id="g1",
+                braille="⠁"
+            ),
+            OCRRecord(
+                id=2,
+                text="b",
+                x1=6,
+                y1=0,
+                x2=10,
+                y2=5,
+                group_id="g1"
+            ),
+            OCRRecord(
+                id=3,
+                text="c",
+                x1=12,
+                y1=0,
+                x2=18,
+                y2=5,
+                group_id="g2",
+                braille="⠉"
+            )
+        ]
+
+        app.populate_table()
+
+        with app.status_label:
+
+            app.record_select.set_value(1)
+
+            app.text_input.set_value("x")
+
+            app.apply_edit()
+
+            assert "cleared" in (
+                app.status_label.text
+            )
+
+            assert app.records[0].braille == ""
+
+            assert app.records[1].braille == ""
+
+            # The edited group is invalidated, but a
+            # different word keeps its translation.
+            assert app.records[2].braille == "⠉"
+
+            app.export()
+
+            assert "Untranslated records" in (
+                app.status_label.text
+            )
+
+        await user.should_see("Untranslated records")
+
+
+async def test_ocr_with_no_records_shows_error(
+    monkeypatch
+):
+    """Zero detections must be reported, never silent."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        monkeypatch.setattr(
+            gui_module,
+            "recognize_characters",
+            lambda path: []
+        )
+
+        with app.status_label:
+
+            app.image_path = SAMPLE_IMAGE
+
+            app.run_ocr()
+
+            assert app.records == []
+
+            assert app.table.rows == []
+
+            assert "No characters found" in (
+                app.status_label.text
+            )
+
+        await user.should_see("No characters found")
+
+        await user.should_see(
+            "OCR found no characters in this image."
+        )
