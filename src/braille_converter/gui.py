@@ -16,7 +16,6 @@ from .ocr_engine import (
 )
 
 from .translator import (
-    find_lou_translate,
     load_env_file,
     translate_ueb,
     TranslationError
