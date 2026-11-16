@@ -279,7 +279,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "nicegui", specifier = ">=2.7" },
+    { name = "nicegui", specifier = ">=4.0,<5" },
     { name = "opencv-python-headless", specifier = ">=4.10" },
     { name = "pillow", specifier = ">=10.3" },
     { name = "pyinstaller", marker = "extra == 'dev'", specifier = ">=6.10" },
