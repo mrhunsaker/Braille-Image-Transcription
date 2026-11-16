@@ -22,6 +22,8 @@ from .translator import (
     TranslationError
 )
 
+from .pipeline import translate_records
+
 from .layout import LAYOUTS
 
 from .braille_render import BrailleProfile
@@ -886,51 +888,11 @@ class ConverterApp:
 
             return
 
-        groups = {}
-
-        for record in self.records:
-
-            groups.setdefault(
-                record.group_id,
-                []
-            ).append(record)
-
         try:
 
-            for group in groups.values():
-
-                group.sort(
-                    key=lambda r: r.x1
-                )
-
-                token = "".join(
-                    r.text for r in group
-                )
-
-                math_mode = any(
-                    r.kind == "math"
-                    for r in group
-                )
-
-                translated = translate_ueb(
-                    token,
-                    math_mode=math_mode
-                )
-
-                if not translated:
-                    raise TranslationError(
-                        f"Liblouis returned an empty "
-                        f"translation for token "
-                        f"{token!r}."
-                    )
-
-                for index, record in enumerate(group):
-
-                    record.braille = (
-                        translated
-                        if index == 0
-                        else ""
-                    )
+            translate_records(
+                self.records
+            )
 
         except TranslationError as exc:
             self.show_error(

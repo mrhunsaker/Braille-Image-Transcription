@@ -171,6 +171,22 @@ and this project adheres to
   checked against a temporary .env instead of asserting the
   content of the developer's own file (the old test hardcoded
   a C:\Liblouis path and only ran where that file existed).
+- `braille-converter convert IMAGE_OR_DIR [--out DIR] [--math]
+  [--layout half|full]`: a headless command-line converter for one
+  image or a whole directory. It prints the four written paths per
+  image, reports every failed image on stderr, exits 1 if any image
+  failed and 2 for missing inputs. Run `braille-converter --help` for
+  the full list.
+- `--native` command-line flag for the GUI (same as
+  BRAILLE_CONVERTER_NATIVE=1).
+- shared braille_converter.pipeline module (group_by_word,
+  translate_records) used by both the GUI and the CLI, so the
+  one-Braille-string-per-word rule exists in one place.
+- tests/test_cli.py and tests/test_pipeline_rules.py covering CLI
+  parsing, directory expansion, per-image failure reporting, a full
+  headless conversion, and the translation rules (group order,
+  math selection, single Braille string per group, loud empty
+  translations).
 
 ### Changed
 
@@ -184,6 +200,12 @@ and this project adheres to
   anything else touches the file (Windows would otherwise refuse to
   delete it), and the previous upload's directory is removed after a
   new image loads successfully.
+- NiceGUI is now constrained to >=4.0,<5 and the app runs on 4.0.0.
+  The full test suite passes unchanged on the new major version and
+  the lockfile is updated.
+- gui.translate_all now calls pipeline.translate_records instead of
+  duplicating the grouping and math-selection logic (behavior
+  unchanged; the existing GUI workflow test still covers it).
 
 - .gitignore now ignores the `.idea/` JetBrains IDE directory.
 - The previously tracked `.idea/` files are untracked from the index
