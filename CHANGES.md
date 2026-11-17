@@ -48,6 +48,11 @@ and this project adheres to
 - CI uploads `ocr-expected-ubuntu` and `ocr-expected-windows`
   artifacts containing fixtures for the Tesseract version on
   each runner, so new versions can be added without guessing.
+- tests/test_translator.py: an autouse fixture restores Liblouis
+  environment variables after each test. Previously
+  `load_env_file` wrote values directly into `os.environ`, so
+  a temporary `.env` in one test leaked into later tests and
+  failed CI on Linux (where the leaked table path is absolute).
 - test_pipeline.py: a consistency test verifying every fixture
   matches its version directory and covers all seven images.
 - `.github/workflows/ci.yml`: a `windows-latest` CI leg that
