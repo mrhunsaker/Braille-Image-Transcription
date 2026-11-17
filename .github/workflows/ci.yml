@@ -50,6 +50,21 @@ jobs:
       - name: Run tests
         run: uv run pytest -q -rs
 
+      - name: Record OCR expectations for this runner
+        if: always()
+        continue-on-error: true
+        run: |
+          uv run python scripts/generate_expected.py \
+            --output-dir "${{ runner.temp }}/ocr-expected"
+
+      - name: Upload OCR expectations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocr-expected-ubuntu
+          path: ${{ runner.temp }}/ocr-expected/**
+          if-no-files-found: warn
+
   # Windows is the project's primary platform: path handling,
   # upload temp-dir cleanup and tool discovery differ there.
   # Liblouis has no maintained Chocolatey package, so its
@@ -92,3 +107,19 @@ jobs:
 
       - name: Run tests
         run: uv run pytest -q -rs
+
+      - name: Record OCR expectations for this runner
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          uv run python scripts/generate_expected.py `
+            --output-dir "${{ runner.temp }}/ocr-expected"
+
+      - name: Upload OCR expectations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocr-expected-windows
+          path: ${{ runner.temp }}/ocr-expected/**
+          if-no-files-found: warn

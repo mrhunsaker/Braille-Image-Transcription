@@ -38,6 +38,18 @@ and this project adheres to
 - tests/test_gui.py: progress tests asserting that the running
   message is announced and the controls are disabled while work
   is in flight, then restored afterwards.
+- OCR expectations are now stored per Tesseract version in
+  `tests/test_files/expected/<version>/`. `test_records_match_expected`
+  compares exactly whenever fixtures exist for the installed
+  version; other checks use a version-independent word floor.
+- `scripts/generate_expected.py --output-dir` writes a versioned
+  fixture set anywhere, and `scripts/install_expected.py` validates
+  and installs a downloaded CI artifact.
+- CI uploads `ocr-expected-ubuntu` and `ocr-expected-windows`
+  artifacts containing fixtures for the Tesseract version on
+  each runner, so new versions can be added without guessing.
+- test_pipeline.py: a consistency test verifying every fixture
+  matches its version directory and covers all seven images.
 - `.github/workflows/ci.yml`: a `windows-latest` CI leg that
   installs Tesseract with Chocolatey, lints and runs the suite.
   Liblouis has no maintained Chocolatey package, so its tests

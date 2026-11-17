@@ -1,9 +1,13 @@
 
 """Generate expected OCR results for the test images.
 
-Writes tests/test_files/expected/<stem>.json containing
-the words and mean confidence the current pipeline
-detects, marked as generated and pending human review.
+Writes tests/test_files/expected/<tesseract-version>/<stem>.json
+containing the words and counts the current pipeline detects,
+marked as generated and pending human review.
+
+Expectations are versioned because Tesseract releases detect
+different words from the same image. CI uses --output-dir to
+upload a fixture set for the version installed on its runner.
 
 This is a generation tool, not a test. Run it after
 intentional OCR changes to refresh the expectations:
@@ -11,6 +15,7 @@ intentional OCR changes to refresh the expectations:
     uv run python scripts/generate_expected.py
 """
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -50,7 +55,7 @@ def tesseract_version():
 MIN_WORD_RATIO = 0.4
 
 
-def expected_for(image_path):
+def expected_for(image_path, version):
 
     records = recognize_characters(
         image_path
@@ -90,9 +95,7 @@ def expected_for(image_path):
             "scripts/generate_expected.py; "
             "human review pending"
         ),
-        "tesseract_version": (
-            tesseract_version()
-        ),
+        "tesseract_version": version,
         "word_count": len(words),
         "min_word_count": max(
             1,
@@ -103,15 +106,40 @@ def expected_for(image_path):
     }
 
 
-def main():
+def main(argv=None):
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate OCR expectations for the "
+            "installed Tesseract version."
+        )
+    )
+
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Root for the versioned fixture "
+            "directory (default: "
+            "tests/test_files/expected)."
+        )
+    )
+
+    args = parser.parse_args(argv)
 
     test_dir = (
         ROOT / "tests" / "test_files"
     )
 
-    expected_dir = (
-        test_dir / "expected"
+    version = tesseract_version()
+
+    output_root = (
+        args.output_dir
+        or test_dir / "expected"
     )
+
+    expected_dir = output_root / version
 
     expected_dir.mkdir(
         parents=True,
@@ -130,9 +158,14 @@ def main():
 
         return 1
 
+    print(f"Tesseract {version}")
+
     for image in images:
 
-        payload = expected_for(image)
+        payload = expected_for(
+            image,
+            version
+        )
 
         target = (
             expected_dir
@@ -153,6 +186,8 @@ def main():
             f"{payload['word_count']} words, "
             f"{payload['record_count']} records"
         )
+
+    print(f"Fixtures written to {expected_dir}")
 
     return 0
 

@@ -36,23 +36,57 @@ EXPECTED_DIR = (
 )
 
 
-def load_expected(stem):
+def load_expected(stem, version=None, exact=False):
+    """Load fixtures for a Tesseract version.
 
-    path = (
-        EXPECTED_DIR / f"{stem}.json"
-    )
+    Exact comparisons require a fixture recorded with
+    the installed version. Version-independent checks
+    can fall back to any recorded version.
+    """
 
-    if not path.exists():
-        pytest.skip(
-            f"No expected data for "
-            f"{stem}"
+    path = None
+
+    if version:
+        candidate = (
+            EXPECTED_DIR
+            / version
+            / f"{stem}.json"
         )
 
-    return json.loads(
+        if candidate.exists():
+            path = candidate
+
+    if path is None and not exact:
+        candidates = sorted(
+            EXPECTED_DIR.glob(f"*/{stem}.json")
+        )
+
+        if candidates:
+            path = candidates[0]
+
+    if path is None:
+        pytest.skip(
+            f"No expected data for {stem} "
+            f"with Tesseract {version}. "
+            "Run scripts/generate_expected.py "
+            "to record fixtures for this version."
+        )
+
+    payload = json.loads(
         path.read_text(
             encoding="utf-8"
         )
     )
+
+    if exact and payload.get(
+        "tesseract_version"
+    ) != version:
+        pytest.skip(
+            "Fixture version does not match "
+            "its directory."
+        )
+
+    return payload
 
 
 def group_records(records):
@@ -84,6 +118,48 @@ def record_signature(records):
     )
 
 
+def test_fixture_versions_match_their_directories():
+
+    versions = [
+        path
+        for path in EXPECTED_DIR.iterdir()
+        if path.is_dir()
+    ]
+
+    assert versions, (
+        "No versioned OCR fixtures were found."
+    )
+
+    image_count = len(
+        list(TEST_DIR.glob("*.jpg"))
+    )
+
+    for version_dir in versions:
+
+        fixtures = sorted(
+            version_dir.glob("*_img.json")
+        )
+
+        assert len(fixtures) == image_count, (
+            f"{version_dir.name} has "
+            f"{len(fixtures)} fixtures, expected "
+            f"{image_count}."
+        )
+
+        for fixture in fixtures:
+
+            payload = json.loads(
+                fixture.read_text(encoding="utf-8")
+            )
+
+            assert payload[
+                "tesseract_version"
+            ] == version_dir.name, (
+                f"{fixture} is in the wrong "
+                "version directory."
+            )
+
+
 @pytest.fixture(
     params=sorted(
         TEST_DIR.glob("*.jpg")
@@ -103,26 +179,10 @@ def test_records_match_expected(
 ):
 
     expected = load_expected(
-        image_path.stem
+        image_path.stem,
+        tesseract_version_string,
+        exact=True
     )
-
-    recorded = expected.get(
-        "tesseract_version"
-    )
-
-    if (
-        recorded
-        and recorded != tesseract_version_string
-    ):
-
-        pytest.skip(
-            f"Expected data was recorded "
-            f"with Tesseract {recorded}; "
-            f"this machine has "
-            f"{tesseract_version_string}. "
-            "Run scripts/generate_expected.py "
-            "to refresh the expected data."
-        )
 
     records = ocr_records(image_path)
 
@@ -150,7 +210,8 @@ def test_records_match_expected(
 @pytest.mark.tesseract
 def test_minimum_words_detected(
     image_path,
-    ocr_records
+    ocr_records,
+    tesseract_version_string
 ):
     """Catch a catastrophic OCR regression on any version.
 
@@ -161,7 +222,8 @@ def test_minimum_words_detected(
     """
 
     expected = load_expected(
-        image_path.stem
+        image_path.stem,
+        tesseract_version_string
     )
 
     groups = group_records(
