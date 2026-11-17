@@ -101,6 +101,18 @@ async def test_page_renders_core_sections():
         )
 
         await user.should_see(
+            "OCR Bounding Boxes"
+        )
+
+        await user.should_see(
+            "Image Previews"
+        )
+
+        await user.should_see(
+            "Altered Image Preview"
+        )
+
+        await user.should_see(
             "Selected Character"
         )
 
@@ -111,6 +123,127 @@ async def test_page_renders_core_sections():
         await user.should_see("Translate all")
 
         await user.should_see("Export all")
+
+
+async def test_previews_update_from_ocr_records():
+
+    """Both new visualizations must follow OCR state."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        app.records = [
+            OCRRecord(
+                id=1,
+                text="a",
+                x1=10,
+                y1=10,
+                x2=30,
+                y2=25,
+                group_id="g1",
+                braille="⠁"
+            ),
+            OCRRecord(
+                id=2,
+                text="b",
+                x1=40,
+                y1=10,
+                x2=60,
+                y2=25,
+                group_id="g2",
+                approved=False
+            )
+        ]
+
+        with app.status_label:
+
+            await app._refresh_visualizations(
+                "visualizations updated"
+            )
+
+        assert "2 OCR bounding box" in (
+            app.box_summary.text
+        )
+
+        assert "1 translated word" in (
+            app.altered_label.text
+        )
+
+        assert (
+            app.box_image.props.get("alt", "")
+            .startswith("Bounding boxes for")
+        )
+
+        assert (
+            app.altered_preview_image
+            .props.get("alt", "")
+            .startswith("Altered image for")
+        )
+
+        assert "visualizations updated" in (
+            app.status_label.text
+        )
+
+        assert app.run_button.enabled
+
+
+async def test_visualization_failure_is_not_silent(
+    monkeypatch
+):
+    """A broken preview must raise a visible dialog."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        def fail(*args, **kwargs):
+
+            raise RuntimeError(
+                "renderer unavailable"
+            )
+
+        monkeypatch.setattr(
+            gui_module,
+            "_render_visualization_data",
+            fail
+        )
+
+        app.image_path = SAMPLE_IMAGE
+
+        with app.status_label:
+
+            await app._refresh_visualizations(
+                "done"
+            )
+
+        assert "Preview failed" in (
+            app.status_label.text
+        )
+
+        assert "renderer unavailable" in (
+            app.status_label.text
+        )
+
+        assert app.run_button.enabled
+
+        await user.should_see("Preview failed")
+
+        user.find("Close").click()
 
 
 async def test_startup_status_is_reported(
@@ -440,7 +573,7 @@ async def test_keyboard_selection_drives_the_editor():
 
         app.kind_select.set_value("math")
 
-        app.apply_edit()
+        await app.apply_edit()
 
         assert target.text == "Z"
 
@@ -781,7 +914,7 @@ async def test_editing_word_clears_stale_braille():
 
             app.text_input.set_value("x")
 
-            app.apply_edit()
+            await app.apply_edit()
 
             assert "cleared" in (
                 app.status_label.text

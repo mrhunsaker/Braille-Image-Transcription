@@ -119,6 +119,23 @@ and this project adheres to
   cannot drift from the exported PNG. Tests check overlay colours,
   unready-record reporting, and pixel-for-pixel preview/export
   parity.
+- NiceGUI layout: a bounding-box column now sits immediately to
+  the right of "OCR Character Review", and "Altered Image Preview"
+  sits immediately to the right of the original preview. Boxes are
+  green for approved records and red for rejected records. Both
+  previews and the box overlay have live text summaries and
+  image alt text.
+- Preview refresh runs through `nicegui.run.io_bound`, announces
+  progress in the existing aria-live status, disables workflow
+  controls during work, and reports any rendering failure in the
+  error dialog. Previews refresh after upload, OCR, edits,
+  translation and page-layout changes.
+- tests/test_gui.py and tests/test_accessibility.py: coverage for
+  the new headings, live summaries, alt text, state updates and
+  the loud failure path.
+- README and `docs/manual-accessibility-test.md`: documented the
+  new column order, the preview refresh announcements, and the
+  manual NVDA/JAWS checks needed for the added images.
 
 ### Fixed
 

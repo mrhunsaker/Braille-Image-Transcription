@@ -48,6 +48,21 @@ Use only Tab, Shift+Tab, arrows, Enter, and Space.
 - [ ] The review table announces its accessible name and column
       headers (ID, text, classification, confidence, Braille,
       approved).
+- [ ] The "OCR Bounding Boxes" heading immediately to the right is
+      reachable. Its live summary states the record count, the
+      green/red convention, and coordinates for the first records.
+- [ ] The bounding-box image announces alt text naming the source
+      image and summarizing the same boxes; it is not a silent
+      graphic.
+- [ ] The "Original Image Preview" and "Altered Image Preview"
+      headings are reachable in that left-to-right order, and each
+      image announces descriptive alt text.
+- [ ] The altered preview's live summary names how many translated
+      words are overlaid and warns about untranslated or mixed-
+      approval words.
+- [ ] Preview refresh announces "Updating bounding boxes and image
+      previews; please wait." and disables workflow controls until
+      it finishes.
 - [ ] The Record ID field can be typed into; typing filters options,
       Up/Down move through them, and Enter loads the record.
 - [ ] Loading a record announces "Editing record <id>: <text>,

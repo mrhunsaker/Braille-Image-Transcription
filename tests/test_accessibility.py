@@ -7,11 +7,21 @@ missing accessible names, lost live regions and unlabelled
 dialogs.
 """
 
+from pathlib import Path
+
 from nicegui import ui
 
 from nicegui.testing import user_simulation
 
 from braille_converter.gui import ConverterApp
+
+from braille_converter.models import OCRRecord
+
+SAMPLE_IMAGE = (
+    Path(__file__).parent
+    / "test_files"
+    / "67020988167474f5810b295ba0fdc993_img.jpg"
+)
 
 
 INTERACTIVE = (
@@ -151,7 +161,21 @@ async def test_table_and_landmarks_are_named():
 
         assert "Selected character editor" in names
 
+        assert "Bounding box visualization" in names
+
+        assert "Original image preview" in names
+
+        assert "Altered image preview" in names
+
         assert "Output settings" in names
+
+        assert app.box_summary.props.get(
+            "aria-live"
+        ) == "polite"
+
+        assert app.altered_label.props.get(
+            "aria-live"
+        ) == "polite"
 
         # A generic Quasar file input is not enough: the
         # uploader itself must accept images and be named.
@@ -160,3 +184,58 @@ async def test_table_and_landmarks_are_named():
         assert app.upload.props.get(
             "accept"
         ) == "image/*"
+
+
+async def test_visualization_images_have_alt_text():
+
+    """The new visuals must not be bare, silent images."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        app.records = [
+            OCRRecord(
+                id=7,
+                text="x",
+                x1=5,
+                y1=5,
+                x2=20,
+                y2=20,
+                group_id="g1",
+                braille="⠭"
+            )
+        ]
+
+        with app.status_label:
+
+            await app._refresh_visualizations(
+                "updated"
+            )
+
+        for image in (
+            app.original_preview_image,
+            app.box_image,
+            app.altered_preview_image
+        ):
+
+            alt = image.props.get("alt")
+
+            assert alt, (
+                "A visualization image has no alt text."
+            )
+
+            assert '"' not in alt, (
+                "Alt text must not break the HTML attribute."
+            )
+
+        assert "ID 7" in app.box_image.props["alt"]
+

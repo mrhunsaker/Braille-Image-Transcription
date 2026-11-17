@@ -5,6 +5,7 @@ import io
 import shutil
 import tempfile
 
+from PIL import Image
 from nicegui import events, run, ui
 
 from .diagnostics import run_checks
@@ -21,7 +22,194 @@ from .layout import LAYOUTS
 
 from .braille_render import BrailleProfile
 
-from .image_pipeline import export_outputs
+from .image_pipeline import (
+    draw_bounding_boxes,
+    export_outputs,
+    render_altered_image
+)
+
+
+PREVIEW_SIZE = (360, 280)
+
+BOX_PREVIEW_SIZE = (360, 280)
+
+
+def _encoded_preview(image, size, alt):
+    """Return a scaled PNG data URI and a safe alt string."""
+
+    preview = image.copy()
+
+    preview.thumbnail(size)
+
+    buffer = io.BytesIO()
+
+    preview.save(buffer, format="PNG")
+
+    encoded = base64.b64encode(
+        buffer.getvalue()
+    ).decode("ascii")
+
+    safe_alt = (
+        alt.replace("&", "&amp;")
+        .replace('"', "&quot;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+    return (
+        f"data:image/png;base64,{encoded}",
+        safe_alt
+    )
+
+
+def _box_summary(records):
+    """Describe the overlay for screen-reader users."""
+
+    if not records:
+        return (
+            "Run OCR to see bounding boxes. "
+            "No records are available yet."
+        )
+
+    parts = [
+        f"{len(records)} OCR bounding box(es). ",
+        "Green means approved; red means rejected."
+    ]
+
+    for record in records[:10]:
+
+        parts.append(
+            f" ID {record.id}: "
+            f"{record.x1},{record.y1} to "
+            f"{record.x2},{record.y2}, "
+            + (
+                "approved."
+                if record.approved
+                else "rejected."
+            )
+        )
+
+    if len(records) > 10:
+
+        parts.append(
+            f" {len(records) - 10} more box(es) "
+            "are listed in the OCR table."
+        )
+
+    return "".join(parts)
+
+
+def _altered_summary(records, readiness):
+    """Explain exactly what the altered preview shows."""
+
+    parts = ["Altered image: approved text removed"]
+
+    rendered = len(readiness["renderable"])
+
+    if rendered:
+
+        parts.append(
+            f"; {rendered} translated word(s) "
+            "overlaid in Braille"
+        )
+
+    else:
+
+        parts.append(
+            "; no translated words are overlaid yet"
+        )
+
+    if readiness["untranslated"]:
+
+        parts.append(
+            f"; {len(readiness['untranslated'])} "
+            "approved word(s) still need translation"
+        )
+
+    if readiness["partial"]:
+
+        parts.append(
+            f"; {len(readiness['partial'])} word(s) "
+            "have mixed approvals"
+        )
+
+    if readiness["skipped"]:
+
+        parts.append(
+            f"; {len(readiness['skipped'])} word(s) "
+            "have no approved characters and are "
+            "excluded"
+        )
+
+    parts.append(".")
+
+    if not records:
+
+        parts.append(
+            " Run OCR to create the altered image."
+        )
+
+    return "".join(parts)
+
+
+def _render_visualization_data(
+    path,
+    records,
+    layout,
+    profile
+):
+    """Build all previews off the NiceGUI event loop."""
+
+    with Image.open(path) as opened:
+
+        original = opened.convert("RGB")
+
+    name = Path(path).name
+
+    boxed = draw_bounding_boxes(
+        original,
+        records
+    )
+
+    altered, readiness = render_altered_image(
+        original,
+        records,
+        layout,
+        profile
+    )
+
+    original_preview = _encoded_preview(
+        original,
+        PREVIEW_SIZE,
+        f"Original image {name}, "
+        f"{original.width} by {original.height} "
+        "pixels."
+    )
+
+    box_preview = _encoded_preview(
+        boxed,
+        BOX_PREVIEW_SIZE,
+        f"Bounding boxes for {name}: "
+        + _box_summary(records)
+    )
+
+    altered_preview = _encoded_preview(
+        altered,
+        PREVIEW_SIZE,
+        f"Altered image for {name}: "
+        + _altered_summary(records, readiness)
+    )
+
+    return {
+        "original": original_preview,
+        "boxed": box_preview,
+        "altered": altered_preview,
+        "box_summary": _box_summary(records),
+        "altered_summary": (
+            f"Altered Image Preview for {name}. "
+            + _altered_summary(records, readiness)
+        )
+    }
 
 
 class ConverterApp:
@@ -52,17 +240,29 @@ class ConverterApp:
 
             self._build_status()
 
-            with ui.row().classes("w-full items-start"):
+            with ui.row().classes(
+                "w-full items-start gap-3"
+            ):
 
-                with ui.column().classes("w-1/2 min-w-[500px]"):
+                with ui.column().classes(
+                    "w-1/3 min-w-[420px]"
+                ):
 
                     self._build_review_table()
 
                     self._build_editor()
 
-                with ui.column().classes("w-1/2 min-w-[400px]"):
+                with ui.column().classes(
+                    "w-1/3 min-w-[300px]"
+                ):
 
-                    self._build_preview()
+                    self._build_bounding_boxes()
+
+                with ui.column().classes(
+                    "w-1/3 min-w-[520px]"
+                ):
+
+                    self._build_previews()
 
                     self._build_settings()
 
@@ -256,7 +456,7 @@ class ConverterApp:
                 'edited values"'
             )
 
-            ui.button(
+            self.apply_button = ui.button(
                 "Apply changes",
                 on_click=self.apply_edit
             ).props(
@@ -265,21 +465,95 @@ class ConverterApp:
                 'selected record"'
             )
 
-    def _build_preview(self):
+    def _build_bounding_boxes(self):
 
         ui.label(
-            "Original Image Preview"
-        ).props("id=preview-heading tabindex=0")
+            "OCR Bounding Boxes"
+        ).props("id=boxes-heading tabindex=0")
 
-        self.preview_card = ui.card().classes(
+        self.boxes_card = ui.card().classes(
             "w-full min-h-[200px]"
+        ).props(
+            'role=group '
+            'aria-label="Bounding box visualization"'
         )
 
-        with self.preview_card:
+        with self.boxes_card:
 
-            self.preview_label = ui.label(
-                "Open an image to begin"
-            ).props("aria-live=polite")
+            self.box_summary = ui.label(
+                "Run OCR to see bounding boxes."
+            ).props(
+                "id=box-summary aria-live=polite"
+            )
+
+            self.box_image_slot = ui.column().classes(
+                "w-full items-center"
+            )
+
+            ui.label(
+                "Green = approved; red = rejected."
+            ).classes("text-caption")
+
+    def _build_previews(self):
+
+        ui.label(
+            "Image Previews"
+        ).props("id=previews-heading tabindex=0")
+
+        with ui.row().classes(
+            "w-full items-start gap-2"
+        ):
+
+            self.preview_card = ui.card().classes(
+                "w-1/2 min-w-[220px]"
+            ).props(
+                'role=group '
+                'aria-label="Original image preview"'
+            )
+
+            with self.preview_card:
+
+                ui.label(
+                    "Original Image Preview"
+                ).props(
+                    "id=preview-heading tabindex=0"
+                )
+
+                self.preview_label = ui.label(
+                    "Open an image to begin"
+                ).props(
+                    "id=original-summary aria-live=polite"
+                )
+
+                self.preview_image_slot = ui.column().classes(
+                    "w-full items-center"
+                )
+
+            self.altered_card = ui.card().classes(
+                "w-1/2 min-w-[220px]"
+            ).props(
+                'role=group '
+                'aria-label="Altered image preview"'
+            )
+
+            with self.altered_card:
+
+                ui.label(
+                    "Altered Image Preview"
+                ).props(
+                    "id=altered-heading tabindex=0"
+                )
+
+                self.altered_label = ui.label(
+                    "Run OCR to create the "
+                    "altered image."
+                ).props(
+                    "id=altered-summary aria-live=polite"
+                )
+
+                self.altered_image_slot = ui.column().classes(
+                    "w-full items-center"
+                )
 
     def _build_settings(self):
 
@@ -295,7 +569,8 @@ class ConverterApp:
             self.layout_select = ui.select(
                 list(LAYOUTS.keys()),
                 value="Full page (8 × 10.5 in)",
-                label="Page layout"
+                label="Page layout",
+                on_change=self.layout_changed
             ).props(
                 'aria-label="Page layout '
                 'for the exported '
@@ -432,7 +707,14 @@ class ConverterApp:
             self.upload,
             self.run_button,
             self.translate_button,
-            self.export_button
+            self.export_button,
+            self.record_select,
+            self.text_input,
+            self.kind_select,
+            self.approved_checkbox,
+            self.apply_button,
+            self.layout_select,
+            self.output_input
         )
 
         for control in controls:
@@ -528,12 +810,14 @@ class ConverterApp:
 
         self.populate_table()
 
-        self._show_preview(image)
-
-        self.status_label.set_text(
+        loaded_status = (
             f"Loaded {name}: "
             f"{image.width} × {image.height}px. "
             "Run OCR to extract characters."
+        )
+
+        await self._refresh_visualizations(
+            loaded_status
         )
 
         # Remove the previous upload only after the new
@@ -551,34 +835,112 @@ class ConverterApp:
                 ignore_errors=True
             )
 
-    def _show_preview(self, image):
+    def _apply_visuals(self, data):
+        """Replace the three previews with fresh images."""
 
-        preview = image.copy()
+        self.preview_image_slot.clear()
 
-        preview.thumbnail((760, 590))
+        with self.preview_image_slot:
 
-        buffer = io.BytesIO()
+            source, alt = data["original"]
 
-        preview.save(buffer, format="PNG")
-
-        encoded = base64.b64encode(
-            buffer.getvalue()
-        ).decode("ascii")
-
-        alt = (
-            f"Preview of "
-            f"{self.image_path.name}, "
-            f"{image.width} by "
-            f"{image.height} pixels."
-        ).replace('"', "'")
-
-        with self.preview_card:
-
-            self.preview_card.clear()
-
-            ui.image(
-                f"data:image/png;base64,{encoded}"
+            self.original_preview_image = ui.image(
+                source
             ).props(f'alt="{alt}"')
+
+        self.box_image_slot.clear()
+
+        with self.box_image_slot:
+
+            source, alt = data["boxed"]
+
+            self.box_image = ui.image(
+                source
+            ).props(f'alt="{alt}"')
+
+        self.altered_image_slot.clear()
+
+        with self.altered_image_slot:
+
+            source, alt = data["altered"]
+
+            self.altered_preview_image = ui.image(
+                source
+            ).props(f'alt="{alt}"')
+
+        self.preview_label.set_text(
+            f"Original image preview for "
+            f"{Path(self.image_path).name}."
+        )
+
+        self.box_summary.set_text(
+            data["box_summary"]
+        )
+
+        self.altered_label.set_text(
+            data["altered_summary"]
+        )
+
+    async def _refresh_visualizations(self, final_status):
+        """Update previews with announced, off-loop work."""
+
+        if not self.image_path:
+
+            self.status_label.set_text(
+                final_status
+            )
+
+            return
+
+        self._set_busy(True)
+
+        self.status_label.set_text(
+            "Updating bounding boxes and image "
+            "previews; please wait."
+        )
+
+        try:
+
+            data = await run.io_bound(
+                _render_visualization_data,
+                self.image_path,
+                list(self.records),
+                LAYOUTS[self.layout_select.value],
+                BrailleProfile()
+            )
+
+        except Exception as exc:
+
+            self.show_error(
+                "Preview failed",
+                "Could not update the bounding boxes "
+                "or altered image preview: "
+                f"{exc}"
+            )
+
+            return
+
+        finally:
+
+            self._set_busy(False)
+
+        self._apply_visuals(data)
+
+        self.status_label.set_text(
+            final_status
+        )
+
+    async def layout_changed(self, event=None):
+        """Keep the altered preview in step with layout."""
+
+        if not self.image_path:
+
+            return
+
+        await self._refresh_visualizations(
+            "Page layout changed. The altered image "
+            "preview has been updated."
+        )
 
     async def run_ocr(self):
 
@@ -636,7 +998,7 @@ class ConverterApp:
 
             return
 
-        self.status_label.set_text(
+        await self._refresh_visualizations(
             f"OCR found {len(self.records)} "
             "records. Review them in the "
             "table before translation."
@@ -803,7 +1165,7 @@ class ConverterApp:
 
         return cleared
 
-    def apply_edit(self):
+    async def apply_edit(self):
 
         record_id = self.record_select.value
 
@@ -875,7 +1237,9 @@ class ConverterApp:
                 "again before export."
             )
 
-        self.status_label.set_text(message)
+        await self._refresh_visualizations(
+            message
+        )
 
     async def translate_all(self):
 
@@ -917,7 +1281,7 @@ class ConverterApp:
 
         self.populate_table()
 
-        self.status_label.set_text(
+        await self._refresh_visualizations(
             "Translation completed. Review "
             "before export. Mathematical "
             "structure still requires "

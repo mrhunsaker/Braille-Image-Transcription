@@ -10,6 +10,10 @@ containing text and mathematical notation into Braille.
 - Screen-reader-accessible web GUI (NiceGUI).
 - Character-level OCR using Tesseract.
 - Original-image pixel coordinates.
+- Accessible bounding-box visualization beside the OCR review
+  column, with green approved boxes and red rejected boxes.
+- Side-by-side original and altered image previews. The altered
+  preview is rendered by the same pipeline as the exported PNG.
 - Human OCR correction.
 - Literary and mathematical classification.
 - UEB translation through Liblouis.
@@ -154,11 +158,15 @@ spoken label. The workflow is:
    of an ID to filter, use the arrow keys to navigate, and press
    Enter to load the record. The editor fields and the matching
    table row update, and the status region announces the record.
+   The "OCR Bounding Boxes" heading immediately to the right
+   describes the matching box in its live summary.
 4. Edit "OCR text" and "Classification", then activate "Apply
-   changes".
+   changes". The bounding boxes and both previews update with
+   your approval and translation state.
 5. Tab to "Translate all" and press Enter.
 6. Set the "Output folder" and "Page layout", then activate
-   "Export all".
+   "Export all". Changing the page layout refreshes the altered
+   preview.
 
 Status changes are announced through an aria-live region, and
 errors appear in a modal dialog with an autofocused Close button
