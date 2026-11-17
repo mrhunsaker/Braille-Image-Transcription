@@ -22,6 +22,8 @@ containing text and mathematical notation into Braille.
 - Tactile-dot SVG export.
 - Startup validation with explicit error dialogs for missing
   dependencies (no silent failures).
+- `braille-converter doctor` command for checking the setup
+  from a terminal.
 - Full keyboard operation with screen-reader semantics (labelled
   controls, aria-live status, accessible error dialogs, and a
   keyboard-operable record selector).
@@ -70,11 +72,44 @@ for mathematical translation.
 Set LIBLOUIS_UEB_TABLE or LIBLOUIS_UEB_MATH_TABLE to use
 different tables. A .env file in the project root with
 KEY=VALUE lines is also honored; OS environment variables
-take precedence over .env values.
+take precedence over .env values. See `template.env` for a
+commented example.
 
 If lou_translate is not on PATH, the application also checks
 the LOU_TRANSLATE_CMD environment variable and common
 install locations such as C:\Liblouis\bin.
+
+## Check your environment
+
+Run the same checks the GUI performs on startup:
+
+    uv run braille-converter doctor
+
+The command prints the Tesseract version and executable, the
+Liblouis tables and executable, the translation timeout, and
+a sample translation. Every failed check includes a fix; the
+command exits 1 when anything is wrong. No GUI or browser is
+required.
+
+## Environment variables
+
+All settings can be placed in a `.env` file in the project root
+(one `KEY=VALUE` per line) or set in the OS environment. OS
+values win over `.env` values.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `TESSERACT_CMD` | auto-detected | Full path to `tesseract.exe` when it is not on PATH. |
+| `LOU_TRANSLATE_CMD` | auto-detected | Full path to `lou_translate` when it is not on PATH. |
+| `LIBLOUIS_UEB_TABLE` | `en-ueb-g2.ctb` | Literary Braille table. |
+| `LIBLOUIS_UEB_MATH_TABLE` | `en-ueb-math.ctb` | Math Braille table. |
+| `LIBLOUIS_TIMEOUT` | `30` | Seconds before a Liblouis translation is reported as hung. |
+| `BRAILLE_CONVERTER_MAX_UPLOAD_MB` | `25` | Largest accepted image upload, in MB. |
+| `BRAILLE_CONVERTER_MAX_IMAGE_DIMENSION` | `8000` | Largest accepted upload, in pixels per side. |
+| `BRAILLE_CONVERTER_NATIVE` | unset | Set to `1` to open the native window instead of a browser. |
+
+An empty or commented-out value means "use the default". Malformed
+lines in `.env` are reported, never skipped silently.
 
 ## Run
 
@@ -146,12 +181,61 @@ The application produces:
 
     uv run pytest
 
-The suite skips OCR tests when Tesseract is missing, translation
-tests when Liblouis is missing, and the exact-count comparison when
-the installed Tesseract version differs from the recorded version.
-CI installs both tools.
+The suite skips OCR tests when Tesseract is missing and translation
+tests when Liblouis is missing. Exact OCR expectations are stored
+per Tesseract version under `tests/test_files/expected/<version>/`;
+the exact comparison runs whenever fixtures exist for the installed
+version, while version-independent checks (word-count floor,
+determinism, ordering and translation) always run. CI installs both
+tools on Ubuntu and Tesseract on Windows, and uploads generated
+fixtures for each runner's Tesseract version.
+
+To measure coverage:
+
+    uv run pytest --cov=braille_converter --cov-report=term-missing
+
+Lint with:
 
     uv run ruff check .
+
+## Troubleshooting
+
+Run `uv run braille-converter doctor` first. It names the failing
+check and prints the setting or install step that fixes it.
+
+- **"Tesseract OCR is not available"** — install Tesseract with
+  English language data, add its `bin` directory to PATH, or set
+  `TESSERACT_CMD` to the full path of `tesseract.exe`.
+- **"Liblouis was not found"** — install Liblouis with the UEB
+  tables, add its `bin` directory to PATH, or set
+  `LOU_TRANSLATE_CMD`. On Windows a typical path is
+  `C:\Liblouis\bin\lou_translate.exe`.
+- **"Braille table not found"** — the table path in
+  `LIBLOUIS_UEB_TABLE` or `LIBLOUIS_UEB_MATH_TABLE` is wrong.
+  Point it at the installed `.ctb` file or remove the setting to
+  use the built-in table name.
+- **"Liblouis timed out"** — the input or table is wedged. Check
+  the table, then raise `LIBLOUIS_TIMEOUT` if translation is
+  legitimately slow.
+- **"Invalid image"** — the upload was rejected before OCR. The
+  dialog names the file and the exact limit; resize the image or
+  adjust `BRAILLE_CONVERTER_MAX_UPLOAD_MB` /
+  `BRAILLE_CONVERTER_MAX_IMAGE_DIMENSION`.
+- **"Partially approved words"** — every character in a word must
+  be approved or rejected before export. Partially approved words
+  are never silently dropped.
+- **"Untranslated records"** — run "Translate all" after OCR or
+  after editing any word; edits clear that word's Braille.
+- **The app looks frozen** — OCR and translation run off the UI
+  event loop and announce "OCR running" / "Translation running"
+  in the status region. Controls are disabled until the work is
+  done.
+- **Exact OCR tests skip on my machine** — generate fixtures for
+  the installed Tesseract version with
+  `uv run python scripts/generate_expected.py` and commit the new
+  `tests/test_files/expected/<version>/` directory. Generated
+  fixtures are regression baselines, not human-verified ground
+  truth.
 
 ## Packaging
 

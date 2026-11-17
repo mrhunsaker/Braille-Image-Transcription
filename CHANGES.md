@@ -10,6 +10,14 @@ and this project adheres to
 
 ### Added
 
+- Coverage tooling: `pytest-cov` is a dev dependency, with branch
+  coverage and missing-line reporting configured in `pyproject.toml`.
+  Run `uv run pytest --cov=braille_converter --cov-report=term-missing`.
+- README: added a doctor section, a table of all environment variables
+  with defaults, a troubleshooting guide for tool failures, rejected
+  uploads, export blocking and skipped OCR fixtures, and updated the
+  testing section to explain per-version fixtures and coverage.
+- tests/test_cli.py: a check that the dev extra declares `pytest-cov`.
 - `upload_validation.validate_upload()`: uploads are rejected with an
   actionable "Invalid image" dialog when the extension is unsupported,
   the file is empty, too large, too large in pixel dimensions, corrupt,

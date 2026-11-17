@@ -373,3 +373,24 @@ def test_native_extra_is_declared():
         requirement.startswith("pywebview")
         for requirement in extras["native"]
     )
+
+
+def test_dev_extra_includes_coverage_tooling():
+
+    import tomllib
+
+    config = tomllib.loads(
+        (
+            Path(__file__).parents[1]
+            / "pyproject.toml"
+        ).read_text(encoding="utf-8")
+    )
+
+    dev = config["project"][
+        "optional-dependencies"
+    ]["dev"]
+
+    assert any(
+        requirement.startswith("pytest-cov")
+        for requirement in dev
+    )
