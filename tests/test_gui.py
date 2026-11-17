@@ -112,7 +112,8 @@ async def test_page_renders_core_sections():
 
 
 async def test_startup_status_is_reported(
-    tesseract_available
+    tesseract_available,
+    liblouis_available
 ):
 
     holder = {}
@@ -132,7 +133,7 @@ async def test_startup_status_is_reported(
             "message; failures must never be silent."
         )
 
-        if tesseract_available:
+        if tesseract_available and liblouis_available:
 
             assert (
                 "Environment checks passed"
@@ -305,6 +306,7 @@ async def test_translation_announces_progress(
 
 
 @pytest.mark.tesseract
+@pytest.mark.liblouis
 async def test_full_workflow_creates_all_outputs(
     tmp_path
 ):
@@ -554,6 +556,7 @@ async def test_partially_approved_word_blocks_export(
 
 
 @pytest.mark.tesseract
+@pytest.mark.liblouis
 async def test_unapproved_word_is_excluded_with_a_note(
     tmp_path
 ):

@@ -38,6 +38,13 @@ and this project adheres to
 - tests/test_gui.py: progress tests asserting that the running
   message is announced and the controls are disabled while work
   is in flight, then restored afterwards.
+- `.github/workflows/ci.yml`: a `windows-latest` CI leg that
+  installs Tesseract with Chocolatey, lints and runs the suite.
+  Liblouis has no maintained Chocolatey package, so its tests
+  skip there while the Ubuntu leg continues to cover them.
+- tests/test_gui.py: startup-status and translation-dependent
+  tests now declare both required tool markers, so a machine
+  with Tesseract but no Liblouis skips rather than fails.
 - tests/test_accessibility.py: automated accessibility guards for
   accessible names on every interactive control, polite/assertive
   live regions, `role=alert` on the error card, named table and
