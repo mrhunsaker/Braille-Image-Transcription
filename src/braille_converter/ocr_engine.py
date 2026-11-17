@@ -235,7 +235,11 @@ def recognize_characters(image_path):
 
     configure_tesseract()
 
-    image = Image.open(image_path).convert("RGB")
+    # Close the file handle deterministically: on Windows a
+    # lingering handle prevents cleanup of upload temp dirs.
+    with Image.open(image_path) as opened:
+
+        image = opened.convert("RGB")
 
     width, height = image.size
 

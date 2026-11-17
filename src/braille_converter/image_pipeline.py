@@ -164,6 +164,28 @@ def export_outputs(
 
     output_dir = Path(output_dir)
 
+    # Validate before creating directories or writing any
+    # artifact, so a rejected export leaves no partial set.
+    readiness = export_readiness(records)
+
+    if readiness["partial"]:
+
+        raise ExportError(
+            f"{len(readiness['partial'])} word(s) are "
+            "only partly approved. Approve or reject "
+            "every character in each word before "
+            "exporting; partially approved words are "
+            "never silently dropped."
+        )
+
+    if readiness["untranslated"]:
+
+        raise ExportError(
+            f"{len(readiness['untranslated'])} approved "
+            "word(s) have no Braille. Translate them "
+            "before exporting."
+        )
+
     output_dir.mkdir(
         parents=True,
         exist_ok=True
@@ -171,9 +193,12 @@ def export_outputs(
 
     base = source_path.stem
 
-    original = Image.open(
-        source_path
-    ).convert("RGB")
+    # Release the file handle deterministically; Windows
+    # will not clean up an upload directory with an open
+    # image inside it.
+    with Image.open(source_path) as opened:
+
+        original = opened.convert("RGB")
 
     cleaned = remove_text_inpaint(
         original,
@@ -198,28 +223,6 @@ def export_outputs(
     scale_y = output_height / original.height
 
     draw = ImageDraw.Draw(page)
-
-    # The GUI validates with this same helper, so a word
-    # cannot pass validation and then vanish here.
-    readiness = export_readiness(records)
-
-    if readiness["partial"]:
-
-        raise ExportError(
-            f"{len(readiness['partial'])} word(s) are "
-            "only partly approved. Approve or reject "
-            "every character in each word before "
-            "exporting; partially approved words are "
-            "never silently dropped."
-        )
-
-    if readiness["untranslated"]:
-
-        raise ExportError(
-            f"{len(readiness['untranslated'])} approved "
-            "word(s) have no Braille. Translate them "
-            "before exporting."
-        )
 
     # Render each translated word only once.
     for group in readiness["renderable"]:
@@ -312,9 +315,15 @@ def export_outputs(
     # 4. Tactile SVG output.
     tactile_path = output_dir / f"{base}_tactile.svg"
 
+    # The tactile SVG must contain the same words as the
+    # raster outputs; unapproved words are not embossed.
     write_tactile_svg(
         tactile_path,
-        records,
+        [
+            record
+            for group in readiness["renderable"]
+            for record in group
+        ],
         profile,
         original.size,
         page.size

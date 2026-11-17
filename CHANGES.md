@@ -30,6 +30,11 @@ and this project adheres to
   buckets, a GUI dialog for partially approved words, a status
   note when unapproved words are excluded, and direct exporter
   rejection of unsafe record sets.
+- tests/test_image_pipeline.py: nine artifact tests covering the
+  four written files, JSON schema and dimensions, PNG scaling and
+  DPI, Braille ink, removal of approved source text, US Letter PDF
+  page size, tactile SVG dot counts, and a loud error when the
+  output directory cannot be created.
 
 ### Fixed
 
@@ -43,6 +48,13 @@ and this project adheres to
   approved record counted) and then disappear from the PNG, PDF,
   SVG and JSON exporters (which required every record approved).
   It is now reported loudly and must be resolved before export.
+- `write_tactile_svg` no longer embosses Braille from unapproved
+  words; the SVG now contains the same words as the other outputs.
+- Image files are opened in `with` blocks in `export_outputs` and
+  `recognize_characters`, releasing Windows file locks so upload
+  temp directories can be cleaned up reliably.
+- `export_outputs` validates records before creating an output
+  directory, so a rejected export leaves no partial artifact set.
 - src/braille_converter/gui.py: `open_image` now uses the NiceGUI 4
   upload event API (`event.file` with an async `read()`) instead of
   the removed `event.content`/`event.name` attributes. The handler
