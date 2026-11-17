@@ -59,7 +59,7 @@ jobs:
 
       - name: Upload OCR expectations
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ocr-expected-ubuntu
           path: ${{ runner.temp }}/ocr-expected/**
@@ -118,7 +118,7 @@ jobs:
 
       - name: Upload OCR expectations
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ocr-expected-windows
           path: ${{ runner.temp }}/ocr-expected/**
