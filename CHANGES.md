@@ -136,9 +136,57 @@ and this project adheres to
 - README and `docs/manual-accessibility-test.md`: documented the
   new column order, the preview refresh announcements, and the
   manual NVDA/JAWS checks needed for the added images.
+- `src/braille_converter/ocr_regions.py`: OpenCV proposals for
+  glyph-sized components, text-line/horizontal groups, and
+  horizontal fraction bars with components above and below. The
+  detector never recognizes characters; Tesseract still produces
+  every accepted character and its box.
+- Stacked-fraction normalization in `src/braille_converter/ocr_engine.py`:
+  numerator and denominator components are rendered as clean masks,
+  OCR'd with digits-only PSM 8/10, and normalized to
+  `numerator/denominator`. Numeric fractions are classified as
+  literary so UEB fraction indicators are used instead of the math
+  table.
+- OCR now keeps the whole-image pass and adds region crops with 6 px
+  padding and 3× upscaling. Region-only records require a minimum
+  confidence and are deduplicated by box overlap. IDs and in-word
+  reading order are finalized after all passes.
+- `OCR_REGION_DETECTION` (default on) in `README.md` and
+  `template.env` lets users disable OpenCV proposals for images
+  dominated by diagram geometry; the whole-image Tesseract scan
+  still runs.
+- Amber candidate boxes in `image_pipeline.draw_bounding_boxes()` and
+  `ConverterApp`: uncovered OpenCV proposals are review aids, not
+  accepted text. Their count is announced in the bounding-box live
+  summary, image alt text, and caption, and green/red keep their
+  approved/rejected meanings.
+- `tests/test_ocr_regions.py`, `tests/test_image_pipeline.py`,
+  `tests/test_gui.py`, `tests/test_pipeline.py`: coverage for region
+  grouping, fraction detection, candidate filtering, literary
+  fraction classification, the amber overlay, and accessible
+  candidate summaries.
+- Human-provided transcriptions for the two stacked-fraction
+  exemplars in `tests/test_files/ground_truth/`, kept separate from
+  generated regression fixtures; ground truth records the supplied
+  `/2 or 6/4` text exactly, including the missing numerator.
+- Six new worksheet images plus regenerated local fixtures for
+  Tesseract `5.4.0.20240606`. Generated files remain marked
+  "human review pending" and are not accuracy ground truth.
 
 ### Fixed
 
+- Small glyph groups and stacked fractions could be omitted when the
+  whole-image OCR pass produced no usable record. Region crops and
+  fraction-bar normalization now surface them as reviewable records
+  or amber candidates; no candidate is translated or exported without
+  passing the existing review and approval workflow.
+- The prototype text-region detector's morphological closing merged
+  whole worksheets into one image-sized box. Component-based line
+  and horizontal grouping now produces local proposals instead.
+- OCR fixtures for a Tesseract version may cover only a subset of
+  images. Exact comparisons now skip missing pairs instead of
+  failing, and the consistency test verifies every fixture has a
+  source image and the correct version label.
 - OCR and translation no longer block the NiceGUI event loop;
   the app stays responsive and screen reader users get an
   announcement instead of apparent silence.

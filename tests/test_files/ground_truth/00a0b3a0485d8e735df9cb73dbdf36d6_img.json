@@ -1,0 +1,27 @@
+{
+  "image": "00a0b3a0485d8e735df9cb73dbdf36d6_img.jpg",
+  "reading_order": "top_to_bottom",
+  "verified_by": "user-provided transcription",
+  "notes": [
+    "Fractions are drawn with a horizontal bar and a number above and below; slash characters are a linear normalization only.",
+    "The second math line was transcribed as '/2 or 6/4'; its first numerator may be missing in the source."
+  ],
+  "regions": [
+    {
+      "type": "text",
+      "text": "2 1/4 or 9/4"
+    },
+    {
+      "type": "text",
+      "text": "/2 or 6/4"
+    },
+    {
+      "type": "text",
+      "text": "? group"
+    },
+    {
+      "type": "text",
+      "text": "1 group"
+    }
+  ]
+}

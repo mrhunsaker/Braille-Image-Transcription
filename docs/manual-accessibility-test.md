@@ -16,6 +16,11 @@ screen reader and version, browser, and any step that failed.
 - A browser started from the keyboard (Chrome, Edge, or Firefox).
 - Tesseract and Liblouis installed, so startup passes its checks.
 - One worksheet image from `tests/test_files/`.
+- One stacked-fraction exemplar, such as
+  `00a0b3a0485d8e735df9cb73dbdf36d6_img.jpg`, to exercise region
+  proposals and fraction normalization.
+- `OCR_REGION_DETECTION` left at its default (`1`) unless you are
+  explicitly comparing the whole-image-only fallback.
 
 Run the checklist twice: once in browser mode
 (`uv run braille-converter`) and, if the native extra is installed
@@ -49,11 +54,19 @@ Use only Tab, Shift+Tab, arrows, Enter, and Space.
       headers (ID, text, classification, confidence, Braille,
       approved).
 - [ ] The "OCR Bounding Boxes" heading immediately to the right is
-      reachable. Its live summary states the record count, the
-      green/red convention, and coordinates for the first records.
+      reachable. Its live summary states the record count, the number
+      of candidate regions awaiting review, the green/red/amber
+      convention, and coordinates for the first records.
 - [ ] The bounding-box image announces alt text naming the source
-      image and summarizing the same boxes; it is not a silent
-      graphic.
+      image and summarizing the same OCR and candidate counts; it is
+      not a silent graphic. Amber candidate boxes are described as
+      review aids, not accepted text.
+- [ ] On the stacked-fraction exemplar, normalized tokens such as
+      `1/4` and `6/4` appear in the review table, while any region
+      OCR did not accept remains amber only. Compare each candidate
+      with the image before approving, correcting, or ignoring it.
+      The supplied `/2 or 6/4` line is preserved exactly, including
+      its missing numerator.
 - [ ] The "Original Image Preview" and "Altered Image Preview"
       headings are reachable in that left-to-right order, and each
       image announces descriptive alt text.
@@ -101,6 +114,14 @@ Use only Tab, Shift+Tab, arrows, Enter, and Space.
 - Braille correctness is a separate check; this document covers
   reaching and operating the controls, not the quality of the
   translation.
+- Amber regions are OpenCV proposals, not human-verified text or
+  accuracy ground truth. Generated fixtures in `tests/test_files/
+  expected/` are regression baselines marked "human review pending";
+  the supplied transcriptions in `tests/test_files/ground_truth/`
+  are separate.
+- Numeric fractions are normalized to slashes for literary UEB
+  translation. Confirm the digits, bar, and resulting Braille cells
+  against the image and the intended embosser before production.
 - Tactile output must be validated on the intended embosser.
 - Automated GUI tests in `tests/test_gui.py` cover labels, dialogs,
   status text, and the workflow, but not screen-reader speech.

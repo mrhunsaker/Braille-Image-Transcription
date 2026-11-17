@@ -93,11 +93,12 @@ def remove_text_inpaint(image, records):
     )
 
 
-def draw_bounding_boxes(image, records):
+def draw_bounding_boxes(image, records, candidates=None):
     """Return a copy of the image with OCR boxes drawn.
 
-    Green boxes are approved records and red boxes are
-    rejected records. The image is never modified in place.
+    Green boxes are approved records, red boxes are rejected
+    records, and amber boxes are OpenCV proposals that need
+    review. The image is never modified in place.
     """
 
     marked = image.convert("RGB").copy()
@@ -109,6 +110,32 @@ def draw_bounding_boxes(image, records):
     approved_color = (0, 190, 0)
 
     rejected_color = (220, 40, 40)
+
+    candidate_color = (240, 170, 0)
+
+    for box in candidates or []:
+
+        x1 = max(0, min(box[0], width - 1))
+
+        y1 = max(0, min(box[1], height - 1))
+
+        x2 = max(x1, min(box[2] - 1, width - 1))
+
+        y2 = max(y1, min(box[3] - 1, height - 1))
+
+        draw.rectangle(
+            (x1, y1, x2, y2),
+            outline=candidate_color,
+            width=2
+        )
+
+        draw.text(
+            (x1, max(0, y1 - 13)),
+            "C",
+            fill=candidate_color,
+            stroke_width=1,
+            stroke_fill=(255, 255, 255)
+        )
 
     for record in records:
 

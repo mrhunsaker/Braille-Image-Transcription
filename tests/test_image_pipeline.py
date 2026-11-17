@@ -119,6 +119,28 @@ def test_bounding_boxes_show_approval_state(tmp_path):
     )
 
 
+def test_bounding_boxes_show_uncovered_candidates(tmp_path):
+    """Amber boxes mark OpenCV proposals awaiting review."""
+
+    source = make_source(tmp_path)
+
+    with Image.open(source) as opened:
+
+        original = opened.convert("RGB")
+
+    marked = draw_bounding_boxes(
+        original,
+        [make_record(1, "g1")],
+        [(120, 60, 160, 90)]
+    )
+
+    pixels = np.asarray(marked)
+
+    assert np.any(
+        np.all(pixels == (240, 170, 0), axis=2)
+    ), "No amber box for the candidate region."
+
+
 def test_altered_preview_matches_export_pixels(tmp_path):
     """Preview and export must share one rendering path."""
 

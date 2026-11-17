@@ -104,6 +104,7 @@ values win over `.env` values.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `TESSERACT_CMD` | auto-detected | Full path to `tesseract.exe` when it is not on PATH. |
+| `OCR_REGION_DETECTION` | `1` | Set to `0` to disable OpenCV region proposals; Tesseract still scans the whole image. |
 | `LOU_TRANSLATE_CMD` | auto-detected | Full path to `lou_translate` when it is not on PATH. |
 | `LIBLOUIS_UEB_TABLE` | `en-ueb-g2.ctb` | Literary Braille table. |
 | `LIBLOUIS_UEB_MATH_TABLE` | `en-ueb-math.ctb` | Math Braille table. |
@@ -132,6 +133,27 @@ Optional native window mode (requires the `native` extra):
     uv run braille-converter --native
 
 `set BRAILLE_CONVERTER_NATIVE=1` has the same effect.
+
+## OCR region proposals
+
+The OCR pass keeps the whole-image Tesseract scan and adds
+OpenCV-proposed crops for small glyph groups that the whole-image
+pass can miss. OpenCV only proposes boxes; Tesseract still produces
+every character and its coordinates. Stacked fractions are detected
+as a horizontal bar with glyphs above and below, then normalized to
+`numerator/denominator` so the literary UEB table produces fraction
+indicators rather than math-table output.
+
+The bounding-box preview uses amber outlines for candidate regions
+that are not already covered by an OCR record. Green and red retain
+their existing meanings (approved and rejected records). The live
+summary announces the candidate count, and every amber box has an
+accessible text description. Candidates are review aids, not accepted
+text: confirm or correct characters in the review table before
+translation and export.
+
+Set `OCR_REGION_DETECTION=0` to disable the extra region pass if a
+particular image is dominated by diagram geometry.
 
 ## Command-line conversion
 
@@ -194,9 +216,14 @@ tests when Liblouis is missing. Exact OCR expectations are stored
 per Tesseract version under `tests/test_files/expected/<version>/`;
 the exact comparison runs whenever fixtures exist for the installed
 version, while version-independent checks (word-count floor,
-determinism, ordering and translation) always run. CI installs both
-tools on Ubuntu and Tesseract on Windows, and uploads generated
-fixtures for each runner's Tesseract version.
+determinism, ordering and translation) always run. A version
+directory may cover only some images: exact comparisons skip for the
+missing pairs rather than claiming a match. CI installs both tools on
+Ubuntu and Tesseract on Windows, and uploads generated fixtures for
+each runner's Tesseract version. Human-provided transcriptions for the
+two stacked-fraction exemplars live in
+`tests/test_files/ground_truth/` and are kept separate from generated
+regression baselines.
 
 To measure coverage:
 

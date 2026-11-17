@@ -12,6 +12,11 @@ from .diagnostics import run_checks
 
 from .ocr_engine import recognize_characters
 
+from .ocr_regions import (
+    detect_text_regions,
+    uncovered_candidate_regions
+)
+
 from .translator import TranslationError
 
 from .upload_validation import UploadError, validate_upload
@@ -62,19 +67,23 @@ def _encoded_preview(image, size, alt):
     )
 
 
-def _box_summary(records):
+def _box_summary(records, candidates=()):
     """Describe the overlay for screen-reader users."""
 
-    if not records:
+    parts = [
+        f"{len(records)} OCR bounding box(es). ",
+        f"{len(candidates)} candidate region(s) "
+        "await review. ",
+        "Green means approved; red means rejected; "
+        "amber means a candidate region."
+    ]
+
+    if not records and not candidates:
         return (
             "Run OCR to see bounding boxes. "
             "No records are available yet."
         )
 
-    parts = [
-        f"{len(records)} OCR bounding box(es). ",
-        "Green means approved; red means rejected."
-    ]
 
     for record in records[:10]:
 
@@ -166,9 +175,15 @@ def _render_visualization_data(
 
     name = Path(path).name
 
+    candidates = uncovered_candidate_regions(
+        detect_text_regions(original),
+        records
+    )
+
     boxed = draw_bounding_boxes(
         original,
-        records
+        records,
+        candidates
     )
 
     altered, readiness = render_altered_image(
@@ -190,7 +205,7 @@ def _render_visualization_data(
         boxed,
         BOX_PREVIEW_SIZE,
         f"Bounding boxes for {name}: "
-        + _box_summary(records)
+        + _box_summary(records, candidates)
     )
 
     altered_preview = _encoded_preview(
@@ -204,7 +219,10 @@ def _render_visualization_data(
         "original": original_preview,
         "boxed": box_preview,
         "altered": altered_preview,
-        "box_summary": _box_summary(records),
+        "box_summary": _box_summary(
+            records,
+            candidates
+        ),
         "altered_summary": (
             f"Altered Image Preview for {name}. "
             + _altered_summary(records, readiness)
@@ -491,7 +509,8 @@ class ConverterApp:
             )
 
             ui.label(
-                "Green = approved; red = rejected."
+                "Green = approved; red = rejected; "
+                "amber = candidate region."
             ).classes("text-caption")
 
     def _build_previews(self):

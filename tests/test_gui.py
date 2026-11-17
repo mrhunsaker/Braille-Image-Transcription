@@ -174,6 +174,12 @@ async def test_previews_update_from_ocr_records():
             app.box_summary.text
         )
 
+        assert "candidate region(s)" in (
+            app.box_summary.text
+        )
+
+        assert "amber" in app.box_summary.text
+
         assert "1 translated word" in (
             app.altered_label.text
         )

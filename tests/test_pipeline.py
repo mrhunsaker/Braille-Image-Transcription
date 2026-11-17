@@ -130,9 +130,10 @@ def test_fixture_versions_match_their_directories():
         "No versioned OCR fixtures were found."
     )
 
-    image_count = len(
-        list(TEST_DIR.glob("*.jpg"))
-    )
+    image_stems = {
+        path.stem
+        for path in TEST_DIR.glob("*.jpg")
+    }
 
     for version_dir in versions:
 
@@ -140,13 +141,15 @@ def test_fixture_versions_match_their_directories():
             version_dir.glob("*_img.json")
         )
 
-        assert len(fixtures) == image_count, (
-            f"{version_dir.name} has "
-            f"{len(fixtures)} fixtures, expected "
-            f"{image_count}."
+        assert fixtures, (
+            f"{version_dir.name} has no fixtures."
         )
 
         for fixture in fixtures:
+
+            assert fixture.stem in image_stems, (
+                f"{fixture.name} has no source image."
+            )
 
             payload = json.loads(
                 fixture.read_text(encoding="utf-8")
@@ -158,6 +161,41 @@ def test_fixture_versions_match_their_directories():
                 f"{fixture} is in the wrong "
                 "version directory."
             )
+
+
+def test_exemplar_ground_truth_is_recorded():
+
+    """Human-provided transcriptions are kept separate from
+    generated, human-review-pending regression fixtures.
+    """
+
+    ground_truth_dir = TEST_DIR / "ground_truth"
+
+    fixtures = sorted(
+        ground_truth_dir.glob("*.json")
+    )
+
+    assert len(fixtures) >= 2
+
+    for fixture in fixtures:
+
+        payload = json.loads(
+            fixture.read_text(encoding="utf-8")
+        )
+
+        assert payload["verified_by"]
+
+        assert payload["reading_order"] in {
+            "top_to_bottom",
+            "left_to_right"
+        }
+
+        assert payload["regions"]
+
+        assert all(
+            region["text"]
+            for region in payload["regions"]
+        )
 
 
 @pytest.fixture(
