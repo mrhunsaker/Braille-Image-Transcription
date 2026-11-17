@@ -70,8 +70,16 @@ def _encoded_preview(image, size, alt):
 def _box_summary(records, candidates=()):
     """Describe the overlay for screen-reader users."""
 
+    approved = sum(
+        1 for record in records
+        if record.approved
+    )
+
+    rejected = len(records) - approved
+
     parts = [
         f"{len(records)} OCR bounding box(es). ",
+        f"{approved} approved; {rejected} rejected. ",
         f"{len(candidates)} candidate region(s) "
         "await review. ",
         "Green means approved; red means rejected; "
@@ -483,6 +491,14 @@ class ConverterApp:
                 'selected record"'
             )
 
+            self.approval_button = ui.button(
+                "Reject bounding box",
+                on_click=self.toggle_record_approval
+            ).props(
+                'aria-label="Reject the '
+                'selected OCR bounding box"'
+            ).classes("w-full")
+
     def _build_bounding_boxes(self):
 
         ui.label(
@@ -732,6 +748,7 @@ class ConverterApp:
             self.kind_select,
             self.approved_checkbox,
             self.apply_button,
+            self.approval_button,
             self.layout_select,
             self.output_input
         )
@@ -1076,6 +1093,73 @@ class ConverterApp:
             )
         )
 
+    def _selected_record(self):
+        """Return the record chosen in the keyboard selector."""
+
+        record_id = self.record_select.value
+
+        if record_id is None:
+            return None
+
+        return next(
+            (
+                record for record in self.records
+                if record.id == record_id
+            ),
+            None
+        )
+
+    def _row_for(self, record):
+        """Return the current table row for a record."""
+
+        return next(
+            (
+                row for row in self.table.rows
+                if row["id"] == record.id
+            ),
+            None
+        )
+
+    def _sync_approval_button(self, record):
+        """Make the approval action match the selected box."""
+
+        if record is None or record.approved:
+            text = "Reject bounding box"
+
+            label = (
+                "Reject the selected "
+                "OCR bounding box"
+            )
+
+        else:
+            text = "Restore bounding box"
+
+            label = (
+                "Restore the selected "
+                "OCR bounding box"
+            )
+
+        self.approval_button.set_text(text)
+
+        self.approval_button.props(
+            f'aria-label="{label}"'
+        )
+
+    def _announce_selection(self, record):
+        """Speak the selected record through the live region."""
+
+        self.status_label.set_text(
+            f"Editing record {record.id}: "
+            f"{record.text!r}, "
+            f"confidence "
+            + (
+                f"{record.confidence:.2f}"
+                if record.confidence is not None
+                else "unknown"
+            )
+            + "."
+        )
+
     def _load_editor(self, record):
         """Fill the editor fields from a record."""
 
@@ -1087,18 +1171,52 @@ class ConverterApp:
             record.approved
         )
 
+        self._sync_approval_button(record)
+
     def select_record_by_id(self, event):
         """Keyboard selection: load the chosen record."""
 
-        record_id = event.value
+        record = self._selected_record()
 
-        if record_id is None:
+        if record is None:
             return
+
+        self._load_editor(record)
+
+        row = self._row_for(record)
+
+        if row is not None:
+            self.table.set_selection([row])
+
+        self._announce_selection(record)
+
+    def select_record(self, event):
+        """Table selection: load the chosen row.
+
+        NiceGUI 4 delivers selected rows in
+        ``event.selection``. The old
+        ``event.args['rows']`` shape raised
+        AttributeError and left the editor on the
+        previous record.
+        """
+
+        selected = event.selection
+
+        if not selected:
+            return
+
+        row = selected[0]
+
+        record_id = (
+            row["id"]
+            if isinstance(row, dict)
+            else row
+        )
 
         record = next(
             (
-                r for r in self.records
-                if r.id == record_id
+                record for record in self.records
+                if record.id == record_id
             ),
             None
         )
@@ -1108,55 +1226,11 @@ class ConverterApp:
 
         self._load_editor(record)
 
-        row = next(
-            (
-                row for row in self.table.rows
-                if row["id"] == record_id
-            ),
-            None
+        self.record_select.set_value(
+            record.id
         )
 
-        if row is not None:
-            self.table.set_selection([row])
-
-        self.status_label.set_text(
-            f"Editing record {record_id}: "
-            f"{record.text!r}, "
-            f"confidence "
-            + (
-                f"{record.confidence:.2f}"
-                if record.confidence is not None
-                else "unknown"
-            )
-            + "."
-        )
-
-    def select_record(self, event):
-
-        selected = event.args.get(
-            "rows",
-            []
-        )
-
-        if not selected:
-            return
-
-        row = selected[0]
-
-        record = next(
-            (
-                r for r in self.records
-                if r.id == row["id"]
-            ),
-            None
-        )
-
-        if record:
-            self._load_editor(record)
-
-            self.record_select.set_value(
-                record.id
-            )
+        self._announce_selection(record)
 
     def clear_group_braille(self, group_id):
         """Drop Braille that no longer matches the text.
@@ -1199,15 +1273,7 @@ class ConverterApp:
 
             return
 
-        edited = None
-
-        for record in self.records:
-
-            if record.id == record_id:
-
-                edited = record
-
-                break
+        edited = self._selected_record()
 
         if edited is None:
             self.show_error(
@@ -1235,16 +1301,12 @@ class ConverterApp:
 
         self.populate_table()
 
-        row = next(
-            (
-                row for row in self.table.rows
-                if row["id"] == record_id
-            ),
-            None
-        )
+        row = self._row_for(edited)
 
         if row is not None:
             self.table.set_selection([row])
+
+        self._sync_approval_button(edited)
 
         message = f"Updated record {record_id}."
 
@@ -1254,6 +1316,52 @@ class ConverterApp:
                 "cleared because the text "
                 "changed; run 'Translate all' "
                 "again before export."
+            )
+
+        await self._refresh_visualizations(
+            message
+        )
+
+    async def toggle_record_approval(self):
+        """Reject or restore the selected bounding box."""
+
+        record = self._selected_record()
+
+        if record is None:
+            self.show_error(
+                "No record selected",
+                "Choose a Record ID in the "
+                "editor, or select a row in the "
+                "OCR Character Review table, before "
+                "rejecting or restoring a box.",
+                source=self.run_button
+            )
+
+            return
+
+        record.approved = not record.approved
+
+        self.populate_table()
+
+        row = self._row_for(record)
+
+        if row is not None:
+            self.table.set_selection([row])
+
+        self._sync_approval_button(record)
+
+        if record.approved:
+            message = (
+                f"Restored bounding box for record "
+                f"{record.id}. It will be green and "
+                "included when its word is exported."
+            )
+
+        else:
+            message = (
+                f"Rejected bounding box for record "
+                f"{record.id}. It will be red and "
+                "excluded from export."
             )
 
         await self._refresh_visualizations(

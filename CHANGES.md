@@ -176,9 +176,23 @@ and this project adheres to
   `5.5.3.20260724` (Windows) from the CI artifacts produced by the
   region-OCR code. The older fixtures described the previous OCR
   output and caused exact-comparison failures on both CI runners.
+- An accessible "Reject bounding box" / "Restore bounding box"
+  button in the Selected Character editor. Rejection turns the box
+  red, updates the table and live summary, and excludes the record
+  from export once its whole word is resolved; restoration undoes
+  it. The box summary now also states approved and rejected counts.
+- `TODO.md` and a linked "Planned work" README section tracking the
+  deferred need to preserve word and line spacing in returned
+  Braille. `pipeline.translate_records()` carries a matching TODO
+  comment.
 
 ### Fixed
 
+- Clicking a row in the OCR Character Review table no longer raises
+  `AttributeError: 'TableSelectionEventArguments' object has no
+  attribute 'args'`. NiceGUI 4 delivers selected rows in
+  `event.selection`; the handler now uses that field and announces
+  the selected record through the aria-live status.
 - Small glyph groups and stacked fractions could be omitted when the
   whole-image OCR pass produced no usable record. Region crops and
   fraction-bar normalization now surface them as reviewable records

@@ -109,6 +109,9 @@ def translate_records(records, force_math=False):
             key=lambda record: record.x1
         )
 
+        # TODO: preserve inter-word and line spacing in the
+        # returned Braille by using record box geometry.
+        # Tracked in TODO.md; deferred from the OCR review work.
         token = "".join(
             record.text for record in group
         )

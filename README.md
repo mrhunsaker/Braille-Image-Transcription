@@ -185,8 +185,13 @@ spoken label. The workflow is:
 4. Edit "OCR text" and "Classification", then activate "Apply
    changes". The bounding boxes and both previews update with
    your approval and translation state.
-5. Tab to "Translate all" and press Enter.
-6. Set the "Output folder" and "Page layout", then activate
+5. To discard a bad box, select its record and activate
+   "Reject bounding box". The box turns red, the status region
+   announces the rejection, and the word is excluded from export
+   once every character in it is resolved. Activate "Restore
+   bounding box" to undo.
+6. Tab to "Translate all" and press Enter.
+7. Set the "Output folder" and "Page layout", then activate
    "Export all". Changing the page layout refreshes the altered
    preview.
 
@@ -291,6 +296,11 @@ the pipeline unattended.
 - [SECURITY.md](SECURITY.md) — how to report vulnerabilities
 - [SUPPORT.md](SUPPORT.md) — where to get help
 - [CHANGES.md](CHANGES.md) — changelog
+
+## Planned work
+
+See [TODO.md](TODO.md). The next item is preserving word and line
+spacing in the returned Braille instead of concatenating word groups.
 
 ## Important limitations
 

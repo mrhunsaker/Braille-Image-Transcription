@@ -80,6 +80,11 @@ Use only Tab, Shift+Tab, arrows, Enter, and Space.
       Up/Down move through them, and Enter loads the record.
 - [ ] Loading a record announces "Editing record <id>: <text>,
       confidence <value>."
+- [ ] The "Reject bounding box" button is announced with its name.
+      Activating it announces "Rejected bounding box for record
+      <id>", changes the button name to "Restore bounding box",
+      and adds that record to the red/rejected count in the box
+      summary. Activating it again restores the green box.
 - [ ] Editing OCR text and classification, then activating Apply
       changes, announces "Updated record <id>." and, when the word had
       Braille, that the Braille was cleared.

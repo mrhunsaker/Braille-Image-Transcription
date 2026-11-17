@@ -600,6 +600,136 @@ async def test_keyboard_selection_drives_the_editor():
         )
 
 
+async def test_table_selection_loads_editor():
+    """NiceGUI 4 table events use selection, not args."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        app.records = [
+            OCRRecord(
+                id=1,
+                text="a",
+                x1=10,
+                y1=10,
+                x2=30,
+                y2=25
+            ),
+            OCRRecord(
+                id=2,
+                text="b",
+                x1=40,
+                y1=10,
+                x2=60,
+                y2=25,
+                kind="math"
+            )
+        ]
+
+        app.populate_table()
+
+        event = events.TableSelectionEventArguments(
+            sender=app.table,
+            client=app.table.client,
+            selection=[app.table.rows[1]]
+        )
+
+        app.select_record(event)
+
+        assert app.text_input.value == "b"
+
+        assert app.kind_select.value == "math"
+
+        assert app.record_select.value == 2
+
+        assert app.status_label.text.startswith(
+            "Editing record 2"
+        )
+
+
+async def test_reject_and_restore_bounding_box():
+
+    """A bad accepted box can be rejected and undone."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        record = OCRRecord(
+            id=1,
+            text="a",
+            x1=10,
+            y1=10,
+            x2=30,
+            y2=25,
+            group_id="g1",
+            braille="⠁"
+        )
+
+        app.records = [record]
+
+        app.populate_table()
+
+        app.record_select.set_value(1)
+
+        assert app.approval_button.text == (
+            "Reject bounding box"
+        )
+
+        user.find("Reject bounding box").click()
+
+        await user.should_see(
+            "Rejected bounding box for record 1"
+        )
+
+        assert not record.approved
+
+        assert app.approval_button.text == (
+            "Restore bounding box"
+        )
+
+        assert app.table.rows[0]["approved"] == "no"
+
+        assert "0 approved; 1 rejected" in (
+            app.box_summary.text
+        )
+
+        user.find("Restore bounding box").click()
+
+        await user.should_see(
+            "Restored bounding box for record 1"
+        )
+
+        assert record.approved
+
+        assert app.table.rows[0]["approved"] == "yes"
+
+        assert "1 approved; 0 rejected" in (
+            app.box_summary.text
+        )
+
+        assert app.approval_button.text == (
+            "Reject bounding box"
+        )
+
+
 @pytest.mark.tesseract
 async def test_export_blocks_when_groups_untranslated():
 
