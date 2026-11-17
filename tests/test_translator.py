@@ -18,6 +18,38 @@ from braille_converter.translator import (
 )
 
 
+ENV_KEYS = (
+    "LIBLOUIS_UEB_TABLE",
+    "LIBLOUIS_UEB_MATH_TABLE",
+    "LIBLOUIS_TIMEOUT"
+)
+
+
+@pytest.fixture(autouse=True)
+def restore_liblouis_env():
+    """Undo values load_env_file writes straight to os.environ.
+
+    Without this, one test's temporary `.env` leaks into later
+    tests. On Linux the leaked absolute table path even makes
+    check_table fail, so CI caught what Windows did not.
+    """
+
+    saved = {
+        key: os.environ.get(key)
+        for key in ENV_KEYS
+    }
+
+    yield
+
+    for key, value in saved.items():
+
+        if value is None:
+            os.environ.pop(key, None)
+
+        else:
+            os.environ[key] = value
+
+
 @pytest.mark.liblouis
 def test_translate_hello_world_g2():
 
