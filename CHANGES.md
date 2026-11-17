@@ -45,6 +45,13 @@ and this project adheres to
 - `scripts/generate_expected.py --output-dir` writes a versioned
   fixture set anywhere, and `scripts/install_expected.py` validates
   and installs a downloaded CI artifact.
+- Imported CI-generated baseline fixtures for Tesseract `5.5.0`
+  (Ubuntu) and `5.5.3.20260724` (Windows) alongside the existing
+  `5.4.0.20240606` set. Exact OCR comparisons now run on both CI
+  legs instead of skipping. These are pipeline-generated regression
+  snapshots ("human review pending" in each file), **not** human-
+  verified ground truth; they catch drift between versions but do
+  not by themselves prove any accuracy improvement.
 - CI uploads `ocr-expected-ubuntu` and `ocr-expected-windows`
   artifacts containing fixtures for the Tesseract version on
   each runner, so new versions can be added without guessing.
