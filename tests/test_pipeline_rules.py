@@ -12,6 +12,7 @@ from braille_converter import pipeline as pipeline_module
 from braille_converter.models import OCRRecord
 
 from braille_converter.pipeline import (
+    export_readiness,
     group_by_word,
     translate_records
 )
@@ -139,6 +140,42 @@ def test_force_math_overrides_literary(monkeypatch):
     )
 
     assert seen["x"] is True
+
+
+def test_export_readiness_classifies_groups():
+    """Validation and export must agree on every group."""
+
+    fully_done = make_record(1, "a", 0, "g1")
+    fully_done.braille = "⠁"
+
+    untranslated = make_record(2, "b", 20, "g2")
+
+    partial_first = make_record(3, "c", 40, "g3")
+    partial_first.braille = "⠉"
+
+    partial_second = make_record(4, "d", 50, "g3")
+    partial_second.approved = False
+
+    skipped = make_record(5, "e", 60, "g4")
+    skipped.approved = False
+
+    readiness = export_readiness([
+        fully_done,
+        untranslated,
+        partial_first,
+        partial_second,
+        skipped
+    ])
+
+    assert readiness["renderable"] == [[fully_done]]
+
+    assert readiness["untranslated"] == [[untranslated]]
+
+    assert readiness["partial"] == [
+        [partial_first, partial_second]
+    ]
+
+    assert readiness["skipped"] == [[skipped]]
 
 
 def test_empty_translation_is_loud(monkeypatch):

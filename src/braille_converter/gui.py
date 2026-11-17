@@ -22,7 +22,7 @@ from .translator import (
     TranslationError
 )
 
-from .pipeline import translate_records
+from .pipeline import export_readiness, translate_records
 
 from .layout import LAYOUTS
 
@@ -933,34 +933,31 @@ class ConverterApp:
 
             return
 
-        # Braille is stored once per word group (on its
-        # first record); the export renders one string per
-        # group. Validate per group, not per record.
-        approved_groups = {}
+        # Use the same rules as export_outputs: a word is
+        # renderable only when every character is approved
+        # and the group has Braille.
+        readiness = export_readiness(self.records)
 
-        for record in self.records:
+        if readiness["partial"]:
 
-            if not record.approved:
-                continue
-
-            approved_groups.setdefault(
-                record.group_id,
-                []
-            ).append(record)
-
-        untranslated = [
-            group
-            for group in approved_groups.values()
-            if not any(
-                record.braille
-                for record in group
+            self.show_error(
+                "Partially approved words",
+                f"{len(readiness['partial'])} word(s) "
+                "have some characters approved and "
+                "some not. Approve or reject every "
+                "character in a word before exporting; "
+                "partially approved words are never "
+                "silently dropped.",
+                source=self.export_button
             )
-        ]
 
-        if untranslated:
+            return
+
+        if readiness["untranslated"]:
+
             self.show_error(
                 "Untranslated records",
-                f"{len(untranslated)} approved "
+                f"{len(readiness['untranslated'])} approved "
                 "word(s) have not been translated. "
                 "Run 'Translate all' before "
                 "exporting.",
@@ -993,12 +990,23 @@ class ConverterApp:
 
             return
 
-        self.status_label.set_text(
+        status = (
             "Export completed. Created: "
             + ", ".join(
                 str(path) for path in paths
             )
         )
+
+        skipped = len(readiness["skipped"])
+
+        if skipped:
+
+            status += (
+                f" {skipped} word(s) were excluded "
+                "because no character was approved."
+            )
+
+        self.status_label.set_text(status)
 
         ui.notify(
             "Export completed.",

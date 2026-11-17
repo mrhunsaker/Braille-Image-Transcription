@@ -18,6 +18,18 @@ and this project adheres to
   subprocess timeout, strict UTF-8 decoding, an undecodable output,
   an empty result from the Python `louis` binding, and invalid timeout
   values.
+- `pipeline.export_readiness()`: one shared classifier for word
+  groups (renderable, untranslated, partially approved, skipped).
+  The GUI and `export_outputs()` now use it, so validation and
+  rendering can no longer disagree.
+- `image_pipeline.ExportError`, raised before any file is written
+  when a word has mixed approvals or an approved word has no
+  Braille.
+- Coverage in tests/test_pipeline_rules.py, tests/test_gui.py and
+  the new tests/test_image_pipeline.py for all four readiness
+  buckets, a GUI dialog for partially approved words, a status
+  note when unapproved words are excluded, and direct exporter
+  rejection of unsafe record sets.
 
 ### Fixed
 
@@ -27,7 +39,10 @@ and this project adheres to
   translation backends reject empty output for non-empty input, and
   a `TranslationError` from either backend is no longer rewrapped as
   a generic failure.
-
+- A partially approved word used to pass GUI validation (any
+  approved record counted) and then disappear from the PNG, PDF,
+  SVG and JSON exporters (which required every record approved).
+  It is now reported loudly and must be resolved before export.
 - src/braille_converter/gui.py: `open_image` now uses the NiceGUI 4
   upload event API (`event.file` with an async `read()`) instead of
   the removed `event.content`/`event.name` attributes. The handler

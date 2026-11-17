@@ -28,6 +28,66 @@ def group_by_word(records):
     return groups
 
 
+def export_readiness(records):
+    """Classify word groups for export.
+
+    Export renders one Braille string per word group, and the
+    GUI's validation must use exactly the same rules. A group
+    is renderable only when every character is approved and at
+    least one record carries Braille.
+
+    Returns a dict of group lists:
+
+    - renderable: safe to draw.
+    - untranslated: fully approved, but no Braille yet.
+    - partial: some characters approved, some not. These
+      must be reported loudly, never silently dropped.
+    - skipped: no character approved, deliberately excluded.
+    """
+
+    result = {
+        "renderable": [],
+        "untranslated": [],
+        "partial": [],
+        "skipped": []
+    }
+
+    for group in group_by_word(records).values():
+
+        approved = [
+            record
+            for record in group
+            if record.approved
+        ]
+
+        if not approved:
+            result["skipped"].append(group)
+
+            continue
+
+        if len(approved) != len(group):
+            result["partial"].append(group)
+
+            continue
+
+        braille = next(
+            (
+                record.braille
+                for record in group
+                if record.braille
+            ),
+            ""
+        )
+
+        if braille:
+            result["renderable"].append(group)
+
+        else:
+            result["untranslated"].append(group)
+
+    return result
+
+
 def translate_records(records, force_math=False):
     """Translate every word group into Braille in place.
 

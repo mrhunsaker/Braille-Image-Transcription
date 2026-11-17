@@ -375,6 +375,114 @@ async def test_export_blocks_when_groups_untranslated():
             )
 
 
+async def test_partially_approved_word_blocks_export(
+    tmp_path
+):
+    """A half-approved word must be loud, not missing."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        app.output_input.set_value(str(tmp_path))
+
+        first = OCRRecord(
+            id=1,
+            text="a",
+            x1=0,
+            y1=0,
+            x2=10,
+            y2=10,
+            group_id="g1",
+            braille="⠁"
+        )
+
+        second = OCRRecord(
+            id=2,
+            text="b",
+            x1=12,
+            y1=0,
+            x2=22,
+            y2=10,
+            group_id="g1",
+            approved=False
+        )
+
+        app.records = [first, second]
+
+        with app.status_label:
+
+            app.export()
+
+        assert "Partially approved words" in (
+            app.status_label.text
+        )
+
+        assert "never silently dropped" in (
+            app.status_label.text
+        )
+
+        assert not list(tmp_path.iterdir())
+
+        await user.should_see("Partially approved words")
+
+        user.find("Close").click()
+
+
+@pytest.mark.tesseract
+async def test_unapproved_word_is_excluded_with_a_note(
+    tmp_path
+):
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        with app.status_label:
+
+            await app.open_image(
+                sample_upload_event(app)
+            )
+
+            app.run_ocr()
+
+            app.translate_all()
+
+            excluded_group = app.records[-1].group_id
+
+            for record in app.records:
+
+                if record.group_id == excluded_group:
+
+                    record.approved = False
+
+            app.output_input.set_value(str(tmp_path))
+
+            app.export()
+
+        assert "word(s) were excluded" in (
+            app.status_label.text
+        )
+
+        assert "Export completed" in (
+            app.status_label.text
+        )
+
+
 async def test_upload_uses_real_nicegui_4_event_shape():
     """The real event object must work, not a stale fake."""
 

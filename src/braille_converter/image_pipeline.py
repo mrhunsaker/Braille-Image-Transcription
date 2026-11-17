@@ -18,6 +18,12 @@ from .braille_render import (
 
 from .layout import PageLayout, fitted_size_px
 
+from .pipeline import export_readiness
+
+
+class ExportError(RuntimeError):
+    """Raised when the records are not safe to export."""
+
 
 def remove_text_inpaint(image, records):
 
@@ -193,32 +199,38 @@ def export_outputs(
 
     draw = ImageDraw.Draw(page)
 
-    # Group OCR records by word.
-    groups = {}
+    # The GUI validates with this same helper, so a word
+    # cannot pass validation and then vanish here.
+    readiness = export_readiness(records)
 
-    for record in records:
+    if readiness["partial"]:
 
-        if record.group_id not in groups:
+        raise ExportError(
+            f"{len(readiness['partial'])} word(s) are "
+            "only partly approved. Approve or reject "
+            "every character in each word before "
+            "exporting; partially approved words are "
+            "never silently dropped."
+        )
 
-            groups[record.group_id] = []
+    if readiness["untranslated"]:
 
-        groups[record.group_id].append(record)
+        raise ExportError(
+            f"{len(readiness['untranslated'])} approved "
+            "word(s) have no Braille. Translate them "
+            "before exporting."
+        )
 
     # Render each translated word only once.
-    for group in groups.values():
+    for group in readiness["renderable"]:
 
         group.sort(key=lambda r: r.x1)
 
-        if not all(r.approved for r in group):
-            continue
-
         braille = next(
-            (r.braille for r in group if r.braille),
-            ""
+            r.braille
+            for r in group
+            if r.braille
         )
-
-        if not braille:
-            continue
 
         x = round(
             min(r.x1 for r in group) * scale_x
