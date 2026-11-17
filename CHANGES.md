@@ -38,6 +38,10 @@ and this project adheres to
 - tests/test_gui.py: progress tests asserting that the running
   message is announced and the controls are disabled while work
   is in flight, then restored afterwards.
+- tests/test_accessibility.py: automated accessibility guards for
+  accessible names on every interactive control, polite/assertive
+  live regions, `role=alert` on the error card, named table and
+  landmark groups, and the uploader's image filter.
 - tests/test_image_pipeline.py: nine artifact tests covering the
   four written files, JSON schema and dimensions, PNG scaling and
   DPI, Braille ink, removal of approved source text, US Letter PDF
