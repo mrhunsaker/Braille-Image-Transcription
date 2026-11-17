@@ -93,6 +93,175 @@ def remove_text_inpaint(image, records):
     )
 
 
+def draw_bounding_boxes(image, records):
+    """Return a copy of the image with OCR boxes drawn.
+
+    Green boxes are approved records and red boxes are
+    rejected records. The image is never modified in place.
+    """
+
+    marked = image.convert("RGB").copy()
+
+    draw = ImageDraw.Draw(marked)
+
+    width, height = marked.size
+
+    approved_color = (0, 190, 0)
+
+    rejected_color = (220, 40, 40)
+
+    for record in records:
+
+        x1 = max(0, min(record.x1, width - 1))
+
+        y1 = max(0, min(record.y1, height - 1))
+
+        # OCR records use exclusive x2/y2; Pillow's
+        # rectangle uses inclusive coordinates.
+        x2 = max(x1, min(record.x2 - 1, width - 1))
+
+        y2 = max(y1, min(record.y2 - 1, height - 1))
+
+        color = (
+            approved_color
+            if record.approved
+            else rejected_color
+        )
+
+        draw.rectangle(
+            (x1, y1, x2, y2),
+            outline=color,
+            width=2
+        )
+
+        draw.text(
+            (x1, max(0, y1 - 13)),
+            str(record.id),
+            fill=color,
+            stroke_width=1,
+            stroke_fill=(255, 255, 255)
+        )
+
+    return marked
+
+
+def _render_braille_page(
+    original,
+    records,
+    layout,
+    profile,
+    renderable
+):
+    """Build the altered page shared by preview and export."""
+
+    cleaned = remove_text_inpaint(
+        original,
+        records
+    )
+
+    output_width, output_height = fitted_size_px(
+        original.width,
+        original.height,
+        layout,
+        profile.dpi
+    )
+
+    page = cleaned.resize(
+        (output_width, output_height),
+        Image.Resampling.LANCZOS
+    )
+
+    scale_x = output_width / original.width
+
+    scale_y = output_height / original.height
+
+    draw = ImageDraw.Draw(page)
+
+    for group in renderable:
+
+        ordered = sorted(
+            group,
+            key=lambda record: record.x1
+        )
+
+        braille = next(
+            record.braille
+            for record in ordered
+            if record.braille
+        )
+
+        x = round(
+            min(record.x1 for record in ordered)
+            * scale_x
+        )
+
+        y = round(
+            min(record.y1 for record in ordered)
+            * scale_y
+        )
+
+        draw_braille(
+            draw,
+            x,
+            y,
+            braille,
+            profile
+        )
+
+    return page
+
+
+def render_altered_image(
+    original,
+    records,
+    layout,
+    profile
+):
+    """Render the altered preview without writing files.
+
+    Unlike export, this accepts partially reviewed records so
+    the preview can guide the user. Only fully approved,
+    translated words are drawn in Braille, matching export.
+    """
+
+    readiness = export_readiness(records)
+
+    page = _render_braille_page(
+        original,
+        records,
+        layout,
+        profile,
+        readiness["renderable"]
+    )
+
+    return page, readiness
+
+
+def _require_export_readiness(records):
+
+    readiness = export_readiness(records)
+
+    if readiness["partial"]:
+
+        raise ExportError(
+            f"{len(readiness['partial'])} word(s) are "
+            "only partly approved. Approve or reject "
+            "every character in each word before "
+            "exporting; partially approved words are "
+            "never silently dropped."
+        )
+
+    if readiness["untranslated"]:
+
+        raise ExportError(
+            f"{len(readiness['untranslated'])} approved "
+            "word(s) have no Braille. Translate them "
+            "before exporting."
+        )
+
+    return readiness
+
+
 def export_json(
     path,
     source_path,
@@ -166,25 +335,7 @@ def export_outputs(
 
     # Validate before creating directories or writing any
     # artifact, so a rejected export leaves no partial set.
-    readiness = export_readiness(records)
-
-    if readiness["partial"]:
-
-        raise ExportError(
-            f"{len(readiness['partial'])} word(s) are "
-            "only partly approved. Approve or reject "
-            "every character in each word before "
-            "exporting; partially approved words are "
-            "never silently dropped."
-        )
-
-    if readiness["untranslated"]:
-
-        raise ExportError(
-            f"{len(readiness['untranslated'])} approved "
-            "word(s) have no Braille. Translate them "
-            "before exporting."
-        )
+    readiness = _require_export_readiness(records)
 
     output_dir.mkdir(
         parents=True,
@@ -200,56 +351,15 @@ def export_outputs(
 
         original = opened.convert("RGB")
 
-    cleaned = remove_text_inpaint(
+    page = _render_braille_page(
         original,
-        records
-    )
-
-    # Calculate enlarged image dimensions.
-    output_width, output_height = fitted_size_px(
-        original.width,
-        original.height,
+        records,
         layout,
-        profile.dpi
+        profile,
+        readiness["renderable"]
     )
 
-    page = cleaned.resize(
-        (output_width, output_height),
-        Image.Resampling.LANCZOS
-    )
-
-    scale_x = output_width / original.width
-
-    scale_y = output_height / original.height
-
-    draw = ImageDraw.Draw(page)
-
-    # Render each translated word only once.
-    for group in readiness["renderable"]:
-
-        group.sort(key=lambda r: r.x1)
-
-        braille = next(
-            r.braille
-            for r in group
-            if r.braille
-        )
-
-        x = round(
-            min(r.x1 for r in group) * scale_x
-        )
-
-        y = round(
-            min(r.y1 for r in group) * scale_y
-        )
-
-        draw_braille(
-            draw,
-            x,
-            y,
-            braille,
-            profile
-        )
+    output_width, output_height = page.size
 
     # 1. PNG output.
     png_path = output_dir / f"{base}_braille.png"

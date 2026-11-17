@@ -110,6 +110,15 @@ and this project adheres to
   DPI, Braille ink, removal of approved source text, US Letter PDF
   page size, tactile SVG dot counts, and a loud error when the
   output directory cannot be created.
+- `image_pipeline.draw_bounding_boxes()`: returns a labelled copy
+  of the source image with green boxes for approved records and
+  red boxes for rejected records, without mutating the original.
+- `image_pipeline.render_altered_image()`: renders the masked and
+  Braille-overlaid page in memory for the GUI preview. Export now
+  calls the same `_render_braille_page()` helper, so the preview
+  cannot drift from the exported PNG. Tests check overlay colours,
+  unready-record reporting, and pixel-for-pixel preview/export
+  parity.
 
 ### Fixed
 

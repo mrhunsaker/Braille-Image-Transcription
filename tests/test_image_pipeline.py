@@ -13,7 +13,9 @@ from braille_converter.braille_render import BrailleProfile
 
 from braille_converter.image_pipeline import (
     ExportError,
-    export_outputs
+    draw_bounding_boxes,
+    export_outputs,
+    render_altered_image
 )
 
 from braille_converter.layout import (
@@ -76,6 +78,112 @@ def make_source(tmp_path):
     image.save(path)
 
     return path
+
+
+def test_bounding_boxes_show_approval_state(tmp_path):
+    """The box overlay must distinguish approved records."""
+
+    source = make_source(tmp_path)
+
+    with Image.open(source) as opened:
+
+        original = opened.convert("RGB")
+
+    records = [
+        make_record(1, "g1"),
+        make_record(2, "g2", approved=False)
+    ]
+
+    records[1].x1 = 80
+
+    records[1].x2 = 120
+
+    marked = draw_bounding_boxes(original, records)
+
+    pixels = np.asarray(marked)
+
+    assert np.any(
+        np.all(pixels == (0, 190, 0), axis=2)
+    ), "No green box for the approved record."
+
+    assert np.any(
+        np.all(pixels == (220, 40, 40), axis=2)
+    ), "No red box for the rejected record."
+
+    # The helper must not mutate the image it was given.
+    assert np.any(
+        np.all(
+            np.asarray(original) == (0, 0, 0),
+            axis=2
+        )
+    )
+
+
+def test_altered_preview_matches_export_pixels(tmp_path):
+    """Preview and export must share one rendering path."""
+
+    source = make_source(tmp_path)
+
+    with Image.open(source) as opened:
+
+        original = opened.convert("RGB")
+
+    records = [make_record(1, "g1")]
+
+    preview, readiness = render_altered_image(
+        original,
+        records,
+        LAYOUT,
+        PROFILE
+    )
+
+    assert readiness["renderable"]
+
+    out = tmp_path / "out"
+
+    paths = export_outputs(
+        source,
+        records,
+        out,
+        LAYOUT,
+        PROFILE
+    )
+
+    with Image.open(paths[0]) as exported:
+
+        assert np.array_equal(
+            np.asarray(preview),
+            np.asarray(exported)
+        )
+
+
+def test_altered_preview_reports_unready_records(tmp_path):
+    """A partial word must be visible in preview state."""
+
+    source = make_source(tmp_path)
+
+    with Image.open(source) as opened:
+
+        original = opened.convert("RGB")
+
+    preview, readiness = render_altered_image(
+        original,
+        [
+            make_record(1, "g1"),
+            make_record(
+                2,
+                "g1",
+                approved=False,
+                braille=""
+            )
+        ],
+        LAYOUT,
+        PROFILE
+    )
+
+    assert preview.width > 0
+
+    assert len(readiness["partial"]) == 1
 
 
 def test_partial_approval_is_rejected(tmp_path):
