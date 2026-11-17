@@ -10,6 +10,13 @@ and this project adheres to
 
 ### Added
 
+- `braille-converter doctor` command: checks Tesseract and Liblouis,
+  prints the discovered version, executable, tables and timeout, and
+  exits 1 with actionable messages when a check fails. The GUI and
+  CLI now share `diagnostics.run_checks()`, so they cannot disagree
+  about whether the environment is ready.
+- tests/test_cli.py: doctor help/success/failure tests and checks
+  that every failed check carries actionable guidance.
 - `LIBLOUIS_TIMEOUT` setting (default 30 seconds, documented in
   `template.env`) bounding every `lou_translate` subprocess. A hung
   translator now raises `TranslationError` naming the table and the

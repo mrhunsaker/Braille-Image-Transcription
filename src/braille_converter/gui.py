@@ -9,18 +9,11 @@ from nicegui import events, run, ui
 
 from PIL import Image
 
-import pytesseract
+from .diagnostics import run_checks
 
-from .ocr_engine import (
-    configure_tesseract,
-    recognize_characters
-)
+from .ocr_engine import recognize_characters
 
-from .translator import (
-    load_env_file,
-    translate_ueb,
-    TranslationError
-)
+from .translator import TranslationError
 
 from .pipeline import export_readiness, translate_records
 
@@ -29,56 +22,6 @@ from .layout import LAYOUTS
 from .braille_render import BrailleProfile
 
 from .image_pipeline import export_outputs
-
-
-def tesseract_problems():
-    """Return a list of Tesseract startup problems."""
-
-    problems = []
-
-    try:
-        configure_tesseract()
-
-        pytesseract.get_tesseract_version()
-
-    except Exception as exc:
-        problems.append(
-            f"Tesseract OCR is not available: {exc}. "
-            "Install Tesseract (for example with "
-            "'winget install -e --id "
-            "UB-Mannheim.TesseractOCR'), make sure "
-            "tesseract.exe is on PATH, or set the "
-            "TESSERACT_CMD environment variable to "
-            "its full path."
-        )
-
-    return problems
-
-
-def liblouis_problems():
-    """Return a list of Liblouis startup problems."""
-
-    problems = []
-
-    try:
-        load_env_file()
-
-    except TranslationError as exc:
-        problems.append(str(exc))
-
-    try:
-        translated = translate_ueb("a")
-
-        if not translated:
-            problems.append(
-                "Liblouis returned an empty "
-                "translation for a test word."
-            )
-
-    except TranslationError as exc:
-        problems.append(str(exc))
-
-    return problems
 
 
 class ConverterApp:
@@ -411,11 +354,13 @@ class ConverterApp:
 
     def _validate_startup(self):
 
-        problems = []
-
-        problems.extend(tesseract_problems())
-
-        problems.extend(liblouis_problems())
+        # The same checks power `braille-converter doctor`,
+        # so the GUI and CLI cannot disagree about setup.
+        problems = [
+            result.detail
+            for result in run_checks()
+            if not result.ok
+        ]
 
         if problems:
             self.show_error(

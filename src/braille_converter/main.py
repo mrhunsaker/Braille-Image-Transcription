@@ -4,7 +4,8 @@
 Running without a subcommand starts the NiceGUI review
 app. ``braille-converter convert`` runs the same OCR and
 translation pipeline headlessly for one image or a
-directory of images.
+directory of images. ``braille-converter doctor`` reports
+whether Tesseract and Liblouis are correctly installed.
 """
 
 import argparse
@@ -157,6 +158,34 @@ def convert_images(
     return 1 if failures else 0
 
 
+def run_doctor():
+    """Print environment diagnostics and return an exit code."""
+
+    from .diagnostics import format_report, run_checks
+
+    results = run_checks()
+
+    print(format_report(results))
+
+    failed = sum(
+        1 for result in results if not result.ok
+    )
+
+    if failed:
+        print(
+            f"{failed} check(s) failed. Fix the problems "
+            "above and run 'braille-converter doctor' "
+            "again.",
+            file=sys.stderr
+        )
+
+        return 1
+
+    print("All checks passed.")
+
+    return 0
+
+
 def build_parser():
 
     parser = argparse.ArgumentParser(
@@ -222,6 +251,20 @@ def build_parser():
         help=(
             "page layout: half (8 x 5 in) or "
             "full (8 x 10.5 in)"
+        )
+    )
+
+    commands.add_parser(
+        "doctor",
+        help=(
+            "check Tesseract OCR, Liblouis and "
+            "the configured Braille tables"
+        ),
+        description=(
+            "Check Tesseract OCR, Liblouis and the "
+            "configured Braille tables. Reports an "
+            "actionable message for every problem and "
+            "exits 1 if any check fails."
         )
     )
 
@@ -301,6 +344,10 @@ def main(argv=None):
             )
 
             return 2
+
+    if args.command == "doctor":
+
+        return run_doctor()
 
     return launch_gui(native=args.native)
 

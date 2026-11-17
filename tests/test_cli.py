@@ -5,6 +5,14 @@ from pathlib import Path
 
 import pytest
 
+from braille_converter.diagnostics import (
+    CheckResult,
+    check_liblouis,
+    check_tesseract,
+    format_report,
+    run_checks
+)
+
 from braille_converter.main import (
     build_parser,
     collect_images,
@@ -30,6 +38,127 @@ def test_help_lists_convert(capsys):
     output = capsys.readouterr().out
 
     assert "convert" in output
+
+    assert "doctor" in output
+
+
+def test_doctor_help_describes_the_check(capsys):
+
+    with pytest.raises(SystemExit) as exc:
+
+        main(["doctor", "--help"])
+
+    assert exc.value.code == 0
+
+    output = capsys.readouterr().out
+
+    assert "Tesseract" in output
+
+    assert "Liblouis" in output
+
+
+def test_doctor_reports_success(
+    monkeypatch,
+    capsys
+):
+    """A healthy environment exits 0 and names both tools."""
+
+    good = [
+        CheckResult("Tesseract OCR", True, "5.5.0"),
+        CheckResult(
+            "Liblouis UEB", True, "table=en-ueb-g2.ctb"
+        )
+    ]
+
+    monkeypatch.setattr(
+        "braille_converter.diagnostics.run_checks",
+        lambda: good
+    )
+
+    assert main(["doctor"]) == 0
+
+    output = capsys.readouterr().out
+
+    assert "[OK] Tesseract OCR: 5.5.0" in output
+
+    assert "All checks passed." in output
+
+
+def test_doctor_reports_failure_without_gui(
+    monkeypatch,
+    capsys
+):
+    """A broken tool exits 1 and tells the user how to fix it."""
+
+    bad = [
+        CheckResult(
+            "Tesseract OCR",
+            False,
+            "set TESSERACT_CMD to its full path"
+        ),
+        CheckResult("Liblouis UEB", True, "ready")
+    ]
+
+    monkeypatch.setattr(
+        "braille_converter.diagnostics.run_checks",
+        lambda: bad
+    )
+
+    assert main(["doctor"]) == 1
+
+    captured = capsys.readouterr()
+
+    assert "[PROBLEM] Tesseract OCR" in captured.out
+
+    assert "1 check(s) failed" in captured.err
+
+    assert "TESSERACT_CMD" in captured.out
+
+
+def test_checks_are_actionable_on_missing_tools(
+    monkeypatch
+):
+    """Failures carry guidance, never a bare False."""
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("not installed")
+
+    monkeypatch.setattr(
+        "braille_converter.diagnostics.configure_tesseract",
+        fail
+    )
+
+    result = check_tesseract()
+
+    assert result.ok is False
+
+    assert "TESSERACT_CMD" in result.detail
+
+    monkeypatch.setattr(
+        "braille_converter.diagnostics.translate_ueb",
+        fail
+    )
+
+    liblouis = check_liblouis()
+
+    assert liblouis.ok is False
+
+    assert liblouis.detail
+
+
+def test_format_report_marks_every_check():
+    """No check may be omitted or silently marked OK."""
+
+    report = format_report([
+        CheckResult("One", True, "yes"),
+        CheckResult("Two", False, "no")
+    ])
+
+    assert "[OK] One: yes" in report
+
+    assert "[PROBLEM] Two: no" in report
+
+    assert len(run_checks()) == 2
 
 
 def test_convert_requires_an_input():
