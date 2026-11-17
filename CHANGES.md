@@ -10,6 +10,11 @@ and this project adheres to
 
 ### Added
 
+- `.github/dependabot.yml`: weekly Dependabot updates for Python
+  dependencies (`uv`, including `uv.lock`) and GitHub Actions, with
+  `deps`/`deps-dev` commit prefixes. Security updates are handled by
+  GitHub's default behaviour.
+- tests/test_cli.py: a check that Dependabot covers both ecosystems.
 - Coverage tooling: `pytest-cov` is a dev dependency, with branch
   coverage and missing-line reporting configured in `pyproject.toml`.
   Run `uv run pytest --cov=braille_converter --cov-report=term-missing`.

@@ -375,6 +375,24 @@ def test_native_extra_is_declared():
     )
 
 
+def test_dependabot_watches_python_and_actions():
+
+    config = (
+        Path(__file__).parents[1]
+        / ".github"
+        / "dependabot.yml"
+    ).read_text(encoding="utf-8")
+
+    assert 'package-ecosystem: "uv"' in config
+
+    assert (
+        'package-ecosystem: "github-actions"'
+        in config
+    )
+
+    assert 'interval: "weekly"' in config
+
+
 def test_dev_extra_includes_coverage_tooling():
 
     import tomllib
