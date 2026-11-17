@@ -5,7 +5,7 @@ import io
 import shutil
 import tempfile
 
-from nicegui import events, ui
+from nicegui import events, run, ui
 
 from PIL import Image
 
@@ -471,6 +471,34 @@ class ConverterApp:
             self._error_source = None
 
     # ---------------------------------------------------------
+    # Long-running work.
+    # ---------------------------------------------------------
+
+    def _set_busy(self, busy):
+
+        """Freeze the workflow while work runs off-loop.
+
+        The status label is an aria-live region, so setting
+        it before starting a job announces that the app is
+        working instead of appearing to hang.
+        """
+
+        controls = (
+            self.upload,
+            self.run_button,
+            self.translate_button,
+            self.export_button
+        )
+
+        for control in controls:
+
+            if busy:
+                control.disable()
+
+            else:
+                control.enable()
+
+    # ---------------------------------------------------------
     # Workflow handlers.
     # ---------------------------------------------------------
 
@@ -598,7 +626,7 @@ class ConverterApp:
                 f"data:image/png;base64,{encoded}"
             ).props(f'alt="{alt}"')
 
-    def run_ocr(self):
+    async def run_ocr(self):
 
         if not self.image_path:
             self.show_error(
@@ -609,11 +637,17 @@ class ConverterApp:
 
             return
 
+        self._set_busy(True)
+
+        self.status_label.set_text(
+            "OCR running. The image is being "
+            "analyzed; please wait."
+        )
+
         try:
-            self.records = (
-                recognize_characters(
-                    self.image_path
-                )
+            self.records = await run.io_bound(
+                recognize_characters,
+                self.image_path
             )
 
         except Exception as exc:
@@ -628,6 +662,9 @@ class ConverterApp:
             )
 
             return
+
+        finally:
+            self._set_busy(False)
 
         self.populate_table()
 
@@ -886,7 +923,7 @@ class ConverterApp:
 
         self.status_label.set_text(message)
 
-    def translate_all(self):
+    async def translate_all(self):
 
         if not self.records:
             self.show_error(
@@ -897,9 +934,18 @@ class ConverterApp:
 
             return
 
+        self._set_busy(True)
+
+        self.status_label.set_text(
+            "Translation running. Converting "
+            "each reviewed word to Braille; "
+            "please wait."
+        )
+
         try:
 
-            translate_records(
+            await run.io_bound(
+                translate_records,
                 self.records
             )
 
@@ -911,6 +957,9 @@ class ConverterApp:
             )
 
             return
+
+        finally:
+            self._set_busy(False)
 
         self.populate_table()
 

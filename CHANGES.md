@@ -30,6 +30,14 @@ and this project adheres to
   buckets, a GUI dialog for partially approved words, a status
   note when unapproved words are excluded, and direct exporter
   rejection of unsafe record sets.
+- `ConverterApp.run_ocr()` and `ConverterApp.translate_all()` are
+  async and execute the blocking work through NiceGUI's
+  `run.io_bound`. The aria-live status announces "OCR running" /
+  "Translation running", all workflow controls are disabled for
+  the duration and re-enabled in a `finally` block.
+- tests/test_gui.py: progress tests asserting that the running
+  message is announced and the controls are disabled while work
+  is in flight, then restored afterwards.
 - tests/test_image_pipeline.py: nine artifact tests covering the
   four written files, JSON schema and dimensions, PNG scaling and
   DPI, Braille ink, removal of approved source text, US Letter PDF
@@ -38,6 +46,9 @@ and this project adheres to
 
 ### Fixed
 
+- OCR and translation no longer block the NiceGUI event loop;
+  the app stays responsive and screen reader users get an
+  announcement instead of apparent silence.
 - src/braille_converter/translator.py: `subprocess.run` now uses
   `errors="strict"` (invalid bytes are a loud error, never U+FFFD
   replacement characters in Braille) and an explicit timeout. Both

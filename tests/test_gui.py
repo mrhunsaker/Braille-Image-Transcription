@@ -189,6 +189,122 @@ async def test_export_without_data_shows_error():
 
 
 @pytest.mark.tesseract
+async def test_ocr_announces_progress_and_freezes_controls(
+    monkeypatch
+):
+
+    """OCR must not look like a hung app to a screen reader."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        real_ocr = gui_module.recognize_characters
+
+        observed = {}
+
+        def observing_ocr(path):
+
+            observed["status"] = app.status_label.text
+
+            observed["enabled"] = app.run_button.enabled
+
+            return real_ocr(path)
+
+        monkeypatch.setattr(
+            gui_module,
+            "recognize_characters",
+            observing_ocr
+        )
+
+        with app.status_label:
+
+            await app.open_image(
+                sample_upload_event(app)
+            )
+
+            await app.run_ocr()
+
+        assert "OCR running" in observed["status"]
+
+        assert observed["enabled"] is False
+
+        assert app.run_button.enabled is True
+
+        assert "OCR found" in app.status_label.text
+
+
+async def test_translation_announces_progress(
+    monkeypatch
+):
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        observed = {}
+
+        def observing_translate(records, force_math=False):
+
+            observed["status"] = app.status_label.text
+
+            observed["enabled"] = (
+                app.translate_button.enabled
+            )
+
+            for record in records:
+                record.braille = "⠁"
+
+        monkeypatch.setattr(
+            gui_module,
+            "translate_records",
+            observing_translate
+        )
+
+        app.image_path = SAMPLE_IMAGE
+
+        app.records = [
+            OCRRecord(
+                id=1,
+                text="a",
+                x1=0,
+                y1=0,
+                x2=10,
+                y2=10,
+                group_id="g1"
+            )
+        ]
+
+        with app.status_label:
+
+            await app.translate_all()
+
+        assert "Translation running" in (
+            observed["status"]
+        )
+
+        assert observed["enabled"] is False
+
+        assert app.translate_button.enabled is True
+
+        assert "Translation completed" in (
+            app.status_label.text
+        )
+
+
+@pytest.mark.tesseract
 async def test_full_workflow_creates_all_outputs(
     tmp_path
 ):
@@ -216,7 +332,7 @@ async def test_full_workflow_creates_all_outputs(
                 app.status_label.text
             )
 
-            app.run_ocr()
+            await app.run_ocr()
 
             assert app.records, (
                 "OCR produced no records for "
@@ -227,7 +343,7 @@ async def test_full_workflow_creates_all_outputs(
                 app.records
             )
 
-            app.translate_all()
+            await app.translate_all()
 
             translated = [
                 record
@@ -298,7 +414,7 @@ async def test_keyboard_selection_drives_the_editor():
                 sample_upload_event(app)
             )
 
-            app.run_ocr()
+            await app.run_ocr()
 
         assert app.records
 
@@ -360,7 +476,7 @@ async def test_export_blocks_when_groups_untranslated():
                 sample_upload_event(app)
             )
 
-            app.run_ocr()
+            await app.run_ocr()
 
             # Export before translating must refuse,
             # naming the number of untranslated words.
@@ -458,9 +574,9 @@ async def test_unapproved_word_is_excluded_with_a_note(
                 sample_upload_event(app)
             )
 
-            app.run_ocr()
+            await app.run_ocr()
 
-            app.translate_all()
+            await app.translate_all()
 
             excluded_group = app.records[-1].group_id
 
@@ -651,7 +767,7 @@ async def test_ocr_with_no_records_shows_error(
 
             app.image_path = SAMPLE_IMAGE
 
-            app.run_ocr()
+            await app.run_ocr()
 
             assert app.records == []
 
