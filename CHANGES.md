@@ -172,6 +172,10 @@ and this project adheres to
 - Six new worksheet images plus regenerated local fixtures for
   Tesseract `5.4.0.20240606`. Generated files remain marked
   "human review pending" and are not accuracy ground truth.
+- Refreshed generated fixtures for Tesseract `5.5.0` (Ubuntu) and
+  `5.5.3.20260724` (Windows) from the CI artifacts produced by the
+  region-OCR code. The older fixtures described the previous OCR
+  output and caused exact-comparison failures on both CI runners.
 
 ### Fixed
 

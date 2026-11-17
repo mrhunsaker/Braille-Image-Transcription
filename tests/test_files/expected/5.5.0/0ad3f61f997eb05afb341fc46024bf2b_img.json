@@ -4,7 +4,7 @@
   "tesseract_version": "5.5.0",
   "word_count": 15,
   "min_word_count": 6,
-  "record_count": 37,
+  "record_count": 38,
   "words": [
     {
       "text": "Y",
@@ -37,8 +37,8 @@
       "source": "5.5)"
     },
     {
-      "text": "e",
-      "count": 1,
+      "text": "e@",
+      "count": 2,
       "source": "e@"
     },
     {
