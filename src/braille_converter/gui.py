@@ -474,19 +474,28 @@ class ConverterApp:
     # Workflow handlers.
     # ---------------------------------------------------------
 
-    def open_image(self, event: events.UploadEventArguments):
+    async def open_image(
+        self,
+        event: events.UploadEventArguments
+    ):
 
         work_dir = None
 
+        # NiceGUI 4 replaced `content`/`name` on upload events
+        # with a single `file` object whose read() is async.
+        # Keep the name outside the try block so even a failed
+        # read can be reported against the real filename.
+        file = event.file
+
+        name = Path(file.name).name
+
         try:
-            data = event.content.read()
+            data = await file.read()
 
             if not data:
                 raise ValueError(
                     "The selected file is empty."
                 )
-
-            name = Path(event.name).name
 
             # One private directory per upload. Files with
             # the same name from different users or at
@@ -520,7 +529,7 @@ class ConverterApp:
             self.show_error(
                 "Image load failed",
                 f"Could not load "
-                f"'{event.name}': {exc}",
+                f"'{name}': {exc}",
                 source=self.run_button
             )
 

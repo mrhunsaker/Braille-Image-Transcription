@@ -11,11 +11,14 @@ Tesseract-dependent tests skip with a clear reason when
 Tesseract is not installed.
 """
 
-import io
 import shutil
 from pathlib import Path
 
 import pytest
+
+from nicegui import events
+
+from nicegui.elements.upload_files import SmallFileUpload
 
 from nicegui.testing import user_simulation
 
@@ -35,17 +38,35 @@ SAMPLE_IMAGE = (
 )
 
 
-class FakeUpload:
+def upload_event(app, name, data, content_type="image/jpeg"):
 
-    """Minimal stand-in for events.UploadEventArguments."""
+    """Build a real NiceGUI 4 upload event.
 
-    def __init__(self, path):
+    A hand-rolled fake with `name`/`content` would pass while
+    the real GUI breaks (NiceGUI 4 exposes a single `file`
+    object with an async read()), so tests use the real class.
+    """
 
-        self.name = path.name
-
-        self.content = io.BytesIO(
-            path.read_bytes()
+    return events.UploadEventArguments(
+        sender=app.upload,
+        client=app.upload.client,
+        file=SmallFileUpload(
+            name=name,
+            content_type=content_type,
+            _data=data
         )
+    )
+
+
+def sample_upload_event(app):
+
+    """Real upload event carrying the sample worksheet."""
+
+    return upload_event(
+        app,
+        SAMPLE_IMAGE.name,
+        SAMPLE_IMAGE.read_bytes()
+    )
 
 
 def make_root(holder):
@@ -187,8 +208,8 @@ async def test_full_workflow_creates_all_outputs(
         # label slot so the call has a target.
         with app.status_label:
 
-            app.open_image(
-                FakeUpload(SAMPLE_IMAGE)
+            await app.open_image(
+                sample_upload_event(app)
             )
 
             assert "Loaded" in (
@@ -273,7 +294,9 @@ async def test_keyboard_selection_drives_the_editor():
 
         with app.status_label:
 
-            app.open_image(FakeUpload(SAMPLE_IMAGE))
+            await app.open_image(
+                sample_upload_event(app)
+            )
 
             app.run_ocr()
 
@@ -333,7 +356,9 @@ async def test_export_blocks_when_groups_untranslated():
 
         with app.status_label:
 
-            app.open_image(FakeUpload(SAMPLE_IMAGE))
+            await app.open_image(
+                sample_upload_event(app)
+            )
 
             app.run_ocr()
 
@@ -348,6 +373,40 @@ async def test_export_blocks_when_groups_untranslated():
             assert "approved word(s)" in (
                 app.status_label.text
             )
+
+
+async def test_upload_uses_real_nicegui_4_event_shape():
+    """The real event object must work, not a stale fake."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        with app.status_label:
+
+            await app.open_image(
+                upload_event(
+                    app,
+                    "broken.jpg",
+                    b"this is not an image"
+                )
+            )
+
+        status = app.status_label.text
+
+        assert "Image load failed" in status
+
+        assert "broken.jpg" in status
+
+        assert "AttributeError" not in status
+
+        await user.should_see("Image load failed")
 
 
 async def test_upload_has_accessible_name_and_accept_filter():
@@ -516,7 +575,9 @@ async def test_each_upload_gets_a_private_temp_dir():
 
         with app.status_label:
 
-            app.open_image(FakeUpload(SAMPLE_IMAGE))
+            await app.open_image(
+                sample_upload_event(app)
+            )
 
             first_dir = app.image_path.parent
 
@@ -524,7 +585,9 @@ async def test_each_upload_gets_a_private_temp_dir():
 
             assert first_path.exists()
 
-            app.open_image(FakeUpload(SAMPLE_IMAGE))
+            await app.open_image(
+                sample_upload_event(app)
+            )
 
         second_dir = app.image_path.parent
 

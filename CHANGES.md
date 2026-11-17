@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- src/braille_converter/gui.py: `open_image` now uses the NiceGUI 4
+  upload event API (`event.file` with an async `read()`) instead of
+  the removed `event.content`/`event.name` attributes. The handler
+  is async, and the error dialog reports the real filename rather
+  than raising a second `AttributeError` while handling the first
+  failure. Opening a JPEG no longer falls through to "No image,
+  Open an Image First".
+- tests/test_gui.py: replaced the `FakeUpload` double (which encoded
+  the obsolete NiceGUI 3 event shape and let the real GUI break
+  while all tests passed) with NiceGUI's actual
+  `UploadEventArguments`/`SmallFileUpload` classes, awaited the now
+  async handler at every call site, and added a regression test
+  that feeds invalid image bytes through the real event object and
+  asserts a named, actionable error dialog.
+
 ## [0.2.0] - 2026-11-16
 
 First release with the screen-reader-oriented NiceGUI interface, a
