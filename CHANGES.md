@@ -10,6 +10,18 @@ and this project adheres to
 
 ### Added
 
+- `upload_validation.validate_upload()`: uploads are rejected with an
+  actionable "Invalid image" dialog when the extension is unsupported,
+  the file is empty, too large, too large in pixel dimensions, corrupt,
+  or not an image at all. Limits are configurable with
+  `BRAILLE_CONVERTER_MAX_UPLOAD_MB` (default 25) and
+  `BRAILLE_CONVERTER_MAX_IMAGE_DIMENSION` (default 8000 px per side),
+  both documented in `template.env`. Validation happens before any
+  temporary file is created, and a rejected upload never replaces the
+  currently loaded image.
+- tests/test_upload_validation.py and one GUI regression test: eight
+  validation cases plus a check that the error dialog is shown and
+  the previous image is preserved.
 - `braille-converter doctor` command: checks Tesseract and Liblouis,
   prints the discovered version, executable, tables and timeout, and
   exits 1 with actionable messages when a check fails. The GUI and

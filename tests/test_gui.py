@@ -28,6 +28,8 @@ from braille_converter.gui import ConverterApp
 
 from braille_converter.models import OCRRecord
 
+from braille_converter.upload_validation import UploadError
+
 TEST_DIR = Path(__file__).parent / "test_files"
 
 # A worksheet image whose real content the pipeline
@@ -627,13 +629,70 @@ async def test_upload_uses_real_nicegui_4_event_shape():
 
         status = app.status_label.text
 
-        assert "Image load failed" in status
+        assert "Invalid image" in status
 
         assert "broken.jpg" in status
 
+        assert "not a recognized image" in status
+
         assert "AttributeError" not in status
 
-        await user.should_see("Image load failed")
+        await user.should_see("Invalid image")
+
+
+async def test_rejected_upload_never_replaces_current_image(
+    monkeypatch
+):
+    """A rejected file must not clear the working image."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        with app.status_label:
+
+            await app.open_image(
+                sample_upload_event(app)
+            )
+
+            assert app.image_path is not None
+
+            def reject(name, data):
+
+                raise UploadError(
+                    "'huge.png' exceeds the upload limit."
+                )
+
+            monkeypatch.setattr(
+                gui_module,
+                "validate_upload",
+                reject
+            )
+
+            await app.open_image(
+                upload_event(
+                    app,
+                    "huge.png",
+                    b"x",
+                    content_type="image/png"
+                )
+            )
+
+        assert "Invalid image" in app.status_label.text
+
+        assert "upload limit" in app.status_label.text
+
+        assert app.image_path.name == SAMPLE_IMAGE.name
+
+        await user.should_see("Invalid image")
+
+        user.find("Close").click()
 
 
 async def test_upload_has_accessible_name_and_accept_filter():

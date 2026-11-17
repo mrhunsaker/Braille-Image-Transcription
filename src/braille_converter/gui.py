@@ -7,13 +7,13 @@ import tempfile
 
 from nicegui import events, run, ui
 
-from PIL import Image
-
 from .diagnostics import run_checks
 
 from .ocr_engine import recognize_characters
 
 from .translator import TranslationError
+
+from .upload_validation import UploadError, validate_upload
 
 from .pipeline import export_readiness, translate_records
 
@@ -465,10 +465,10 @@ class ConverterApp:
         try:
             data = await file.read()
 
-            if not data:
-                raise ValueError(
-                    "The selected file is empty."
-                )
+            # Validate before creating any temporary files:
+            # an oversized or malformed upload is rejected
+            # with an actionable dialog, never half-loaded.
+            image = validate_upload(name, data)
 
             # One private directory per upload. Files with
             # the same name from different users or at
@@ -484,12 +484,21 @@ class ConverterApp:
 
             path.write_bytes(data)
 
-            # Close the file handle immediately; Windows
-            # refuses to delete a directory while a file
-            # inside it is still open.
-            with Image.open(path) as opened:
+        except UploadError as exc:
 
-                image = opened.convert("RGB")
+            if work_dir is not None:
+                shutil.rmtree(
+                    work_dir,
+                    ignore_errors=True
+                )
+
+            self.show_error(
+                "Invalid image",
+                str(exc),
+                source=self.run_button
+            )
+
+            return
 
         except Exception as exc:
 
