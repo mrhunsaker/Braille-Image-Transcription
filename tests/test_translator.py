@@ -1,13 +1,19 @@
 
 import os
+import subprocess
+import sys
+import types
 
 import pytest
+
+from braille_converter import translator as translator_module
 
 from braille_converter.translator import (
     get_table,
     translate_ueb,
     load_env_file,
     project_root,
+    translation_timeout,
     TranslationError
 )
 
@@ -174,6 +180,141 @@ def test_configured_table_overrides_default(
     )
 
     assert get_table() == "/tmp/custom.ctb"
+
+
+def test_binding_empty_output_is_loud(monkeypatch):
+    """A non-empty input must never produce silent Braille."""
+
+    fake = types.ModuleType("louis")
+
+    fake.translateString = lambda tables, text: ""
+
+    monkeypatch.setitem(sys.modules, "louis", fake)
+
+    with pytest.raises(TranslationError, match="no output"):
+
+        translate_ueb("hello")
+
+
+def test_subprocess_timeout_is_loud(monkeypatch):
+    """A hung lou_translate must report, never hang."""
+
+    monkeypatch.setitem(sys.modules, "louis", None)
+
+    monkeypatch.setattr(
+        translator_module,
+        "find_lou_translate",
+        lambda: "/fake/lou_translate"
+    )
+
+    def hang(*args, **kwargs):
+
+        raise subprocess.TimeoutExpired(
+            cmd=args[0],
+            timeout=7.5
+        )
+
+    monkeypatch.setattr(
+        translator_module.subprocess,
+        "run",
+        hang
+    )
+
+    with pytest.raises(
+        TranslationError,
+        match="timed out after 7.5 seconds"
+    ):
+
+        translate_ueb("hello")
+
+
+def test_subprocess_uses_strict_decode_and_timeout(
+    monkeypatch
+):
+    """Loud decode failures and a bounded subprocess."""
+
+    monkeypatch.setitem(sys.modules, "louis", None)
+
+    monkeypatch.setenv("LIBLOUIS_TIMEOUT", "5")
+
+    monkeypatch.setattr(
+        translator_module,
+        "find_lou_translate",
+        lambda: "/fake/lou_translate"
+    )
+
+    captured = {}
+
+    def record(*args, **kwargs):
+
+        captured.update(kwargs)
+
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="⠁\n",
+            stderr=""
+        )
+
+    monkeypatch.setattr(
+        translator_module.subprocess,
+        "run",
+        record
+    )
+
+    assert translate_ueb("a") == "⠁"
+
+    assert captured["errors"] == "strict"
+
+    assert captured["timeout"] == 5.0
+
+
+def test_subprocess_invalid_utf8_is_loud(monkeypatch):
+    """Replacement characters must never reach Braille."""
+
+    monkeypatch.setitem(sys.modules, "louis", None)
+
+    monkeypatch.setattr(
+        translator_module,
+        "find_lou_translate",
+        lambda: "/fake/lou_translate"
+    )
+
+    def corrupt(*args, **kwargs):
+
+        raise UnicodeDecodeError(
+            "utf-8",
+            b"\xff",
+            0,
+            1,
+            "invalid start byte"
+        )
+
+    monkeypatch.setattr(
+        translator_module.subprocess,
+        "run",
+        corrupt
+    )
+
+    with pytest.raises(
+        TranslationError,
+        match="not valid UTF-8"
+    ):
+
+        translate_ueb("hello")
+
+
+@pytest.mark.parametrize("value", ["abc", "0", "-3"])
+def test_invalid_timeout_is_loud(value, monkeypatch):
+
+    monkeypatch.setenv("LIBLOUIS_TIMEOUT", value)
+
+    with pytest.raises(
+        TranslationError,
+        match="positive number of seconds"
+    ):
+
+        translation_timeout()
 
 
 def test_template_env_is_comments_only():

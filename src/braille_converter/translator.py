@@ -14,6 +14,41 @@ class TranslationError(RuntimeError):
 UNICODE_DISPLAY_TABLE = "unicode.dis"
 
 
+# A wedged lou_translate must never hang the GUI or CLI
+# indefinitely. Override with LIBLOUIS_TIMEOUT (seconds).
+DEFAULT_TRANSLATION_TIMEOUT = 30.0
+
+
+def translation_timeout():
+    """Return the Liblouis subprocess timeout in seconds."""
+
+    load_env_file()
+
+    raw = (
+        os.environ.get(
+            "LIBLOUIS_TIMEOUT", ""
+        ).strip()
+        or str(DEFAULT_TRANSLATION_TIMEOUT)
+    )
+
+    try:
+        value = float(raw)
+
+    except ValueError as exc:
+        raise TranslationError(
+            f"Invalid LIBLOUIS_TIMEOUT {raw!r}: "
+            "expected a positive number of seconds."
+        ) from exc
+
+    if value <= 0:
+        raise TranslationError(
+            f"Invalid LIBLOUIS_TIMEOUT {raw!r}: "
+            "expected a positive number of seconds."
+        )
+
+    return value
+
+
 # Common install locations for the lou_translate CLI,
 # used when the executable is not on PATH.
 COMMON_CLI_LOCATIONS = [
@@ -215,10 +250,21 @@ def translate_ueb(text, math_mode=False):
             text
         )
 
-        return str(result)
+        braille = str(result)
+
+        if not braille:
+            raise TranslationError(
+                "Liblouis Python binding produced "
+                f"no output for table {table}."
+            )
+
+        return braille
 
     except ImportError:
         pass
+
+    except TranslationError:
+        raise
 
     except Exception as exc:
         raise TranslationError(
@@ -259,8 +305,9 @@ def translate_ueb(text, math_mode=False):
             input=text,
             capture_output=True,
             encoding="utf-8",
-            errors="replace",
-            check=True
+            errors="strict",
+            check=True,
+            timeout=translation_timeout()
         )
 
         if not result.stdout:
@@ -270,6 +317,22 @@ def translate_ueb(text, math_mode=False):
             )
 
         return result.stdout.rstrip("\r\n")
+
+    except subprocess.TimeoutExpired as exc:
+        raise TranslationError(
+            "Liblouis timed out after "
+            f"{exc.timeout} seconds while translating "
+            f"with table {table_list}. Check the "
+            "table and input, or raise "
+            "LIBLOUIS_TIMEOUT if translation is "
+            "legitimately slow."
+        ) from exc
+
+    except UnicodeDecodeError as exc:
+        raise TranslationError(
+            "Liblouis returned output that is not "
+            f"valid UTF-8 for table {table_list}: {exc}"
+        ) from exc
 
     except subprocess.CalledProcessError as exc:
         stderr = (

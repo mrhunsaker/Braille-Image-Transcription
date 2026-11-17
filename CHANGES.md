@@ -8,7 +8,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- `LIBLOUIS_TIMEOUT` setting (default 30 seconds, documented in
+  `template.env`) bounding every `lou_translate` subprocess. A hung
+  translator now raises `TranslationError` naming the table and the
+  setting to adjust, instead of freezing the GUI or CLI forever.
+- tests/test_translator.py: seven new failure-path tests covering
+  subprocess timeout, strict UTF-8 decoding, an undecodable output,
+  an empty result from the Python `louis` binding, and invalid timeout
+  values.
+
 ### Fixed
+
+- src/braille_converter/translator.py: `subprocess.run` now uses
+  `errors="strict"` (invalid bytes are a loud error, never U+FFFD
+  replacement characters in Braille) and an explicit timeout. Both
+  translation backends reject empty output for non-empty input, and
+  a `TranslationError` from either backend is no longer rewrapped as
+  a generic failure.
 
 - src/braille_converter/gui.py: `open_image` now uses the NiceGUI 4
   upload event API (`event.file` with an async `read()`) instead of
