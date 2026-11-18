@@ -10,6 +10,13 @@ from nicegui import events, run, ui
 
 from .diagnostics import run_checks
 
+from .boxes import (
+    ORIGIN_CANDIDATE,
+    ORIGIN_MANUAL,
+    new_box_record,
+    normalize_box
+)
+
 from .ocr_engine import recognize_characters
 
 from .ocr_regions import (
@@ -63,7 +70,8 @@ def _encoded_preview(image, size, alt):
 
     return (
         f"data:image/png;base64,{encoded}",
-        safe_alt
+        safe_alt,
+        preview.size
     )
 
 
@@ -77,9 +85,21 @@ def _box_summary(records, candidates=()):
 
     rejected = len(records) - approved
 
+    manual = sum(
+        1 for record in records
+        if record.origin == ORIGIN_MANUAL
+    )
+
+    provisional = sum(
+        1 for record in records
+        if record.origin == ORIGIN_CANDIDATE
+    )
+
     parts = [
-        f"{len(records)} OCR bounding box(es). ",
+        f"{len(records)} bounding box(es). ",
         f"{approved} approved; {rejected} rejected. ",
+        f"{manual} manually drawn; "
+        f"{provisional} accepted provisional. ",
         f"{len(candidates)} candidate region(s) "
         "await review. ",
         "Green means approved; red means rejected; "
@@ -96,7 +116,8 @@ def _box_summary(records, candidates=()):
     for record in records[:10]:
 
         parts.append(
-            f" ID {record.id}: "
+            f" ID {record.id} "
+            f"({record.origin}): "
             f"{record.x1},{record.y1} to "
             f"{record.x2},{record.y2}, "
             + (
@@ -223,6 +244,8 @@ def _render_visualization_data(
         + _altered_summary(records, readiness)
     )
 
+    preview_width, preview_height = box_preview[2]
+
     return {
         "original": original_preview,
         "boxed": box_preview,
@@ -234,6 +257,15 @@ def _render_visualization_data(
         "altered_summary": (
             f"Altered Image Preview for {name}. "
             + _altered_summary(records, readiness)
+        ),
+        # Mouse events arrive in preview pixels; these values
+        # map them back to original-image coordinates.
+        "candidates": candidates,
+        "source_size": original.size,
+        "box_preview_size": box_preview[2],
+        "box_preview_scale": (
+            original.width / preview_width,
+            original.height / preview_height
         )
     }
 
@@ -247,6 +279,14 @@ class ConverterApp:
         self.image_path = None
 
         self.records = []
+
+        self.candidates = []
+
+        self._source_size = None
+
+        self._box_preview_scale = (1.0, 1.0)
+
+        self._drag_start = None
 
         self._error_source = None
 
@@ -399,6 +439,13 @@ class ConverterApp:
                 "sortable": True
             },
             {
+                "name": "origin",
+                "label": "ORIGIN",
+                "field": "origin",
+                "align": "left",
+                "sortable": True
+            },
+            {
                 "name": "box",
                 "label": "BOX",
                 "field": "box",
@@ -527,6 +574,80 @@ class ConverterApp:
             ui.label(
                 "Green = approved; red = rejected; "
                 "amber = candidate region."
+            ).classes("text-caption")
+
+        with ui.card().classes("w-full").props(
+            'role=group aria-label='
+            '"Manual bounding box creator"'
+        ):
+
+            ui.label(
+                "Manual box"
+            ).classes("text-subtitle1")
+
+            with ui.row().classes("w-full gap-2"):
+
+                self.manual_x1 = ui.number(
+                    "Left x1",
+                    value=0,
+                    min=0,
+                    precision=0,
+                    step=1
+                ).props(
+                    'aria-label="Left edge of the '
+                    'manual box in original image '
+                    'pixels"'
+                ).classes("w-1/4")
+
+                self.manual_y1 = ui.number(
+                    "Top y1",
+                    value=0,
+                    min=0,
+                    precision=0,
+                    step=1
+                ).props(
+                    'aria-label="Top edge of the '
+                    'manual box in original image '
+                    'pixels"'
+                ).classes("w-1/4")
+
+                self.manual_x2 = ui.number(
+                    "Right x2",
+                    value=0,
+                    min=0,
+                    precision=0,
+                    step=1
+                ).props(
+                    'aria-label="Right edge of the '
+                    'manual box in original image '
+                    'pixels, exclusive"'
+                ).classes("w-1/4")
+
+                self.manual_y2 = ui.number(
+                    "Bottom y2",
+                    value=0,
+                    min=0,
+                    precision=0,
+                    step=1
+                ).props(
+                    'aria-label="Bottom edge of the '
+                    'manual box in original image '
+                    'pixels, exclusive"'
+                ).classes("w-1/4")
+
+            self.add_box_button = ui.button(
+                "Add manual box",
+                on_click=self.add_manual_box
+            ).props(
+                'aria-label="Add a bounding box at '
+                'the entered coordinates"'
+            ).classes("w-full")
+
+            ui.label(
+                "Coordinates use the original image; x2 and "
+                "y2 are exclusive. Drag on the bounding-box "
+                "preview to fill these fields, or type them "
+                "directly."
             ).classes("text-caption")
 
     def _build_previews(self):
@@ -749,6 +870,11 @@ class ConverterApp:
             self.approved_checkbox,
             self.apply_button,
             self.approval_button,
+            self.manual_x1,
+            self.manual_y1,
+            self.manual_x2,
+            self.manual_y2,
+            self.add_box_button,
             self.layout_select,
             self.output_input
         )
@@ -878,27 +1004,47 @@ class ConverterApp:
 
         with self.preview_image_slot:
 
-            source, alt = data["original"]
+            source, alt, _ = data["original"]
 
             self.original_preview_image = ui.image(
                 source
             ).props(f'alt="{alt}"')
 
+        self.candidates = data["candidates"]
+
+        self._source_size = data["source_size"]
+
+        self._box_preview_scale = data["box_preview_scale"]
+
+        self._drag_start = None
+
         self.box_image_slot.clear()
 
         with self.box_image_slot:
 
-            source, alt = data["boxed"]
+            source, alt, _ = data["boxed"]
 
-            self.box_image = ui.image(
-                source
-            ).props(f'alt="{alt}"')
+            self.box_image = ui.interactive_image(
+                source,
+                size=data["box_preview_size"],
+                on_mouse=self.handle_box_mouse,
+                events=[
+                    "mousedown",
+                    "mousemove",
+                    "mouseup"
+                ]
+            ).props(
+                f'alt="{alt}" '
+                'aria-label="Bounding box preview. '
+                'Drag to select a region, or use the '
+                'manual coordinate fields below."'
+            )
 
         self.altered_image_slot.clear()
 
         with self.altered_image_slot:
 
-            source, alt = data["altered"]
+            source, alt, _ = data["altered"]
 
             self.altered_preview_image = ui.image(
                 source
@@ -915,6 +1061,174 @@ class ConverterApp:
 
         self.altered_label.set_text(
             data["altered_summary"]
+        )
+
+    @staticmethod
+    def _drag_overlay(start, end):
+        """Return an SVG rectangle for the in-progress drag."""
+
+        x1 = min(start[0], end[0])
+        y1 = min(start[1], end[1])
+        width = abs(end[0] - start[0])
+        height = abs(end[1] - start[1])
+
+        return (
+            f'<rect x="{x1:.1f}" y="{y1:.1f}" '
+            f'width="{width:.1f}" height="{height:.1f}" '
+            'fill="rgba(37,99,235,0.18)" '
+            'stroke="#2563eb" stroke-width="2"/>'
+        )
+
+    def _fill_manual_fields(self, box):
+        """Show a chosen box in the authoritative numeric fields."""
+
+        self.manual_x1.set_value(box[0])
+        self.manual_y1.set_value(box[1])
+        self.manual_x2.set_value(box[2])
+        self.manual_y2.set_value(box[3])
+
+    def handle_box_mouse(self, event):
+        """Turn a drag on the preview into numeric coordinates."""
+
+        if self._source_size is None or self.box_image is None:
+            return
+
+        if event.type == "mousedown":
+
+            if event.button == 2:
+                return
+
+            self._drag_start = (
+                event.image_x,
+                event.image_y
+            )
+
+            self.box_image.set_content(
+                self._drag_overlay(
+                    self._drag_start,
+                    self._drag_start
+                )
+            )
+
+            return
+
+        if self._drag_start is None:
+            return
+
+        if event.type == "mousemove":
+
+            self.box_image.set_content(
+                self._drag_overlay(
+                    self._drag_start,
+                    (event.image_x, event.image_y)
+                )
+            )
+
+            return
+
+        if event.type != "mouseup":
+            return
+
+        scale_x, scale_y = self._box_preview_scale
+
+        start_x = self._drag_start[0] * scale_x
+        start_y = self._drag_start[1] * scale_y
+        end_x = event.image_x * scale_x
+        end_y = event.image_y * scale_y
+
+        box = normalize_box(
+            round(min(start_x, end_x)),
+            round(min(start_y, end_y)),
+            round(max(start_x, end_x)) + 1,
+            round(max(start_y, end_y)) + 1,
+            self._source_size
+        )
+
+        self._drag_start = None
+
+        self._fill_manual_fields(box)
+
+        self.status_label.set_text(
+            f"Selected box {box[0]},{box[1]} to "
+            f"{box[2]},{box[3]}. Activate "
+            "\"Add manual box\" to create it."
+        )
+
+    async def add_manual_box(self):
+        """Create a review record from the numeric coordinates."""
+
+        if not self.image_path:
+
+            self.show_error(
+                "No image",
+                "Open an image before adding a box.",
+                source=self.add_box_button
+            )
+
+            return
+
+        values = (
+            self.manual_x1.value,
+            self.manual_y1.value,
+            self.manual_x2.value,
+            self.manual_y2.value
+        )
+
+        if any(value is None for value in values):
+
+            self.show_error(
+                "Incomplete box",
+                "Enter all four coordinates before "
+                "adding a manual box.",
+                source=self.add_box_button
+            )
+
+            return
+
+        box = normalize_box(
+            *values,
+            self._source_size
+        )
+
+        if any(
+            (
+                record.x1,
+                record.y1,
+                record.x2,
+                record.y2
+            ) == box
+            for record in self.records
+        ):
+
+            self.show_error(
+                "Duplicate box",
+                "A box with those coordinates already "
+                "exists. Move the box or edit the "
+                "existing record instead.",
+                source=self.add_box_button
+            )
+
+            return
+
+        record = new_box_record(
+            box,
+            self.records,
+            ORIGIN_MANUAL
+        )
+
+        self.records.append(record)
+
+        self.populate_table()
+
+        self._load_editor(record)
+
+        self.record_select.set_value(record.id)
+
+        await self._refresh_visualizations(
+            f"Added manual box {box[0]},{box[1]} to "
+            f"{box[2]},{box[3]} as record "
+            f"{record.id}. Type its OCR text, then "
+            "activate Translate all."
         )
 
     async def _refresh_visualizations(self, final_status):
@@ -1072,6 +1386,7 @@ class ConverterApp:
                 "kind": record.kind,
                 "confidence": confidence,
                 "approved": "yes" if record.approved else "no",
+                "origin": record.origin,
                 "box": box,
                 "braille": braille
             })
@@ -1374,6 +1689,26 @@ class ConverterApp:
             self.show_error(
                 "No OCR",
                 "Run OCR first.",
+                source=self.translate_button
+            )
+
+            return
+
+        empty_ids = [
+            str(record.id)
+            for record in self.records
+            if not record.text.strip()
+        ]
+
+        if empty_ids:
+
+            self.show_error(
+                "Text required",
+                "Record(s) "
+                + ", ".join(empty_ids)
+                + " have no OCR text. New manual and "
+                "provisional boxes must be typed before "
+                "translation.",
                 source=self.translate_button
             )
 

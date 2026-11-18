@@ -85,6 +85,16 @@ Use only Tab, Shift+Tab, arrows, Enter, and Space.
       <id>", changes the button name to "Restore bounding box",
       and adds that record to the red/rejected count in the box
       summary. Activating it again restores the green box.
+- [ ] The four "Manual box" number fields and "Add manual box"
+      button are announced with their names. Typing coordinates
+      and activating the button announces "Added manual box ..."
+      and selects the new record for editing. A duplicate box
+      opens an error dialog. Dragging on the bounding-box preview
+      announces the selected coordinates and fills the four
+      fields; the fields remain the authoritative way to create
+      the box.
+- [ ] Translating before typing text in a new box opens a "Text
+      required" dialog naming the record ID.
 - [ ] Editing OCR text and classification, then activating Apply
       changes, announces "Updated record <id>." and, when the word had
       Braille, that the Braille was cleared.

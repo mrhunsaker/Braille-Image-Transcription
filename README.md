@@ -194,8 +194,13 @@ spoken label. The workflow is:
    announces the rejection, and the word is excluded from export
    once every character in it is resolved. Activate "Restore
    bounding box" to undo.
-6. Tab to "Translate all" and press Enter.
-7. Set the "Output folder" and "Page layout", then activate
+6. To add a box OCR missed, type its four coordinates in
+   "Manual box" (x2 and y2 are exclusive) or drag on the
+   bounding-box preview to fill them, then activate "Add manual
+   box". The new record appears in the table, is selected for
+   editing, and must be given OCR text before translation.
+7. Tab to "Translate all" and press Enter.
+8. Set the "Output folder" and "Page layout", then activate
    "Export all". Changing the page layout refreshes the altered
    preview.
 

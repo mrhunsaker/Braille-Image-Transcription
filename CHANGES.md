@@ -23,6 +23,12 @@ and this project adheres to
   with every marked box inpainted (approved, rejected, manual and
   provisional) and no Braille overlay, ready for Braille to be added
   later. The existing four artifacts are unchanged.
+- Accessible manual bounding boxes: four labelled coordinate fields
+  plus an "Add manual box" button, and an optional mouse drag on the
+  box preview that fills those fields. New boxes become selected
+  review records with `origin="manual"`; duplicate boxes and missing
+  text are reported in dialogs. The review table now shows each
+  record's origin.
 
 - `.github/dependabot.yml`: weekly Dependabot updates for Python
   dependencies (`uv`, including `uv.lock`) and GitHub Actions, with

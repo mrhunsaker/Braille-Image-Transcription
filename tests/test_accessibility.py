@@ -27,6 +27,7 @@ SAMPLE_IMAGE = (
 INTERACTIVE = (
     ui.button,
     ui.input,
+    ui.number,
     ui.select,
     ui.checkbox,
     ui.upload
@@ -162,6 +163,8 @@ async def test_table_and_landmarks_are_named():
         assert "Selected character editor" in names
 
         assert "Bounding box visualization" in names
+
+        assert "Manual bounding box creator" in names
 
         assert "Original image preview" in names
 

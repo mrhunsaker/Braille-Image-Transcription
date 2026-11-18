@@ -24,6 +24,8 @@ from nicegui.testing import user_simulation
 
 from braille_converter import gui as gui_module
 
+from braille_converter.boxes import normalize_box
+
 from braille_converter.gui import ConverterApp
 
 from braille_converter.models import OCRRecord
@@ -170,7 +172,7 @@ async def test_previews_update_from_ocr_records():
                 "visualizations updated"
             )
 
-        assert "2 OCR bounding box" in (
+        assert "2 bounding box(es)" in (
             app.box_summary.text
         )
 
@@ -729,6 +731,204 @@ async def test_reject_and_restore_bounding_box():
         assert app.approval_button.text == (
             "Reject bounding box"
         )
+
+
+async def test_add_manual_box_creates_a_review_record():
+    """Numeric coordinates are the authoritative input path."""
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        with app.status_label:
+
+            await app._refresh_visualizations("ready")
+
+        app.manual_x1.set_value(10)
+        app.manual_y1.set_value(20)
+        app.manual_x2.set_value(40)
+        app.manual_y2.set_value(30)
+
+        await app.add_manual_box()
+
+        assert len(app.records) == 1
+
+        record = app.records[0]
+
+        assert record.origin == "manual"
+
+        assert (
+            record.x1,
+            record.y1,
+            record.x2,
+            record.y2
+        ) == (10, 20, 40, 30)
+
+        assert record.text == ""
+
+        assert app.table.rows[0]["origin"] == "manual"
+
+        assert app.record_select.value == record.id
+
+        assert "Added manual box" in app.status_label.text
+
+        assert "1 manually drawn" in app.box_summary.text
+
+
+async def test_duplicate_manual_box_is_rejected():
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        with app.status_label:
+
+            await app._refresh_visualizations("ready")
+
+        for name in (
+            "manual_x1",
+            "manual_y1",
+            "manual_x2",
+            "manual_y2"
+        ):
+            getattr(app, name).set_value(10)
+
+        await app.add_manual_box()
+
+        for name in (
+            "manual_x1",
+            "manual_y1",
+            "manual_x2",
+            "manual_y2"
+        ):
+            getattr(app, name).set_value(10)
+
+        with app.status_label:
+
+            await app.add_manual_box()
+
+        assert app.error_title.text == "Duplicate box"
+
+        assert len(app.records) == 1
+
+
+def mouse_event(app, event_type, x, y):
+    """Build a NiceGUI mouse event in preview coordinates."""
+
+    return events.MouseEventArguments(
+        sender=app.box_image,
+        client=app.box_image.client,
+        type=event_type,
+        image_x=x,
+        image_y=y,
+        button=0,
+        buttons=1,
+        alt=False,
+        ctrl=False,
+        meta=False,
+        shift=False
+    )
+
+
+async def test_mouse_drag_fills_numeric_box_fields():
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        with app.status_label:
+
+            await app._refresh_visualizations("ready")
+
+        app.handle_box_mouse(
+            mouse_event(app, "mousedown", 20, 20)
+        )
+
+        app.handle_box_mouse(
+            mouse_event(app, "mousemove", 35, 28)
+        )
+
+        app.handle_box_mouse(
+            mouse_event(app, "mouseup", 40, 30)
+        )
+
+        scale_x, scale_y = app._box_preview_scale
+
+        expected = normalize_box(
+            round(20 * scale_x),
+            round(20 * scale_y),
+            round(40 * scale_x) + 1,
+            round(30 * scale_y) + 1,
+            app._source_size
+        )
+
+        assert [
+            app.manual_x1.value,
+            app.manual_y1.value,
+            app.manual_x2.value,
+            app.manual_y2.value
+        ] == list(expected)
+
+        assert "Activate \"Add manual box\"" in (
+            app.status_label.text
+        )
+
+
+async def test_empty_text_blocks_translation():
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.records = [
+            OCRRecord(
+                id=1,
+                text="",
+                x1=10,
+                y1=10,
+                x2=30,
+                y2=20,
+                origin="manual"
+            )
+        ]
+
+        with app.status_label:
+
+            await app.translate_all()
+
+        assert app.error_title.text == "Text required"
+
+        assert "Record(s) 1" in app.error_message.text
 
 
 @pytest.mark.tesseract
