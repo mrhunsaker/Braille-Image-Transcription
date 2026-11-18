@@ -2,6 +2,7 @@
 """Tests for the command-line converter."""
 
 from pathlib import Path
+import tomllib
 
 import pytest
 
@@ -25,6 +26,22 @@ SMALL_IMAGE = (
     TEST_DIR
     / "6d6670b8e65d3ff8126e5ab9aeaffbd8_img.jpg"
 )
+
+
+def test_translate_script_starts_the_gui_entry_point():
+    """``uv run translate`` must map to the GUI entry point."""
+
+    project = tomllib.loads(
+        (
+            Path(__file__).parents[1] / "pyproject.toml"
+        ).read_text(encoding="utf-8")
+    )
+
+    scripts = project["project"]["scripts"]
+
+    assert scripts["translate"] == (
+        "braille_converter.main:main"
+    )
 
 
 def test_help_lists_convert(capsys):

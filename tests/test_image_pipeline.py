@@ -291,7 +291,7 @@ def test_json_schema_matches_the_export(tmp_path):
         paths[2].read_text(encoding="utf-8")
     )
 
-    assert payload["schema_version"] == "1.0"
+    assert payload["schema_version"] == "1.1"
 
     assert payload["source_image"] == str(source)
 
@@ -316,9 +316,11 @@ def test_json_schema_matches_the_export(tmp_path):
         payload["coordinate_system"]
     )
 
-    assert len(payload["notes"]) >= 4
+    assert len(payload["notes"]) >= 5
 
     assert payload["records"][0]["braille"] == "⠁"
+
+    assert payload["records"][0]["origin"] == "ocr"
 
 
 def test_png_is_scaled_and_contains_braille(tmp_path):

@@ -54,6 +54,7 @@ select = ["E4", "E7", "E9", "F"]
 
 [project.scripts]
 braille-converter = "braille_converter.main:main"
+translate = "braille_converter.main:main"
 
 [build-system]
 requires = ["hatchling"]

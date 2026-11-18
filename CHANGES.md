@@ -10,6 +10,16 @@ and this project adheres to
 
 ### Added
 
+- `uv run translate` entry point in `pyproject.toml`, mapped to the
+  same `braille_converter.main:main` function as `braille-converter`.
+  It starts the review GUI when called without a subcommand.
+- `OCRRecord.origin` records whether a box came from OCR, was
+  drawn manually, or was accepted as a provisional OpenCV region.
+  New `braille_converter.boxes` helpers normalize box coordinates
+  and create review-ready records for manual/provisional boxes.
+- JSON export schema `1.1` documents record provenance and explains
+  the `origin` values in its notes.
+
 - `.github/dependabot.yml`: weekly Dependabot updates for Python
   dependencies (`uv`, including `uv.lock`) and GitHub Actions, with
   `deps`/`deps-dev` commit prefixes. Security updates are handled by

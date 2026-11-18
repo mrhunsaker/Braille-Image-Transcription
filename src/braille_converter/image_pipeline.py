@@ -299,7 +299,7 @@ def export_json(
 
     payload = {
 
-        "schema_version": "1.0",
+        "schema_version": "1.1",
 
         "source_image": str(source_path),
 
@@ -332,7 +332,11 @@ def export_json(
 
             "Braille transcription is stored as Unicode.",
 
-            "Coordinates refer to the original image."
+            "Coordinates refer to the original image.",
+
+            "Record origin is 'ocr', 'manual', or "
+            "'candidate' for an accepted provisional "
+            "region."
 
         ]
 

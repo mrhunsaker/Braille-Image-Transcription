@@ -26,5 +26,9 @@ class OCRRecord:
 
     group_id: str = ""
 
+    # Where the box came from: "ocr", "manual", or
+    # "candidate" for an accepted provisional region.
+    origin: str = "ocr"
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

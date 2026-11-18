@@ -118,7 +118,9 @@ lines in `.env` are reported, never skipped silently.
 
 ## Run
 
-    uv run braille-converter
+    uv run translate
+
+`uv run braille-converter` is an equivalent alias.
 
 The app starts a local web server and opens
 http://localhost:8787 in your default browser.
