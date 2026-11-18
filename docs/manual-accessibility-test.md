@@ -52,7 +52,7 @@ Use only Tab, Shift+Tab, arrows, Enter, and Space.
       the "OCR Character Review" heading.
 - [ ] The review table announces its accessible name and column
       headers (ID, text, classification, confidence, Braille,
-      approved).
+      approved, origin).
 - [ ] The "OCR Bounding Boxes" heading immediately to the right is
       reachable. Its live summary states the record count, the number
       of candidate regions awaiting review, the green/red/amber
@@ -93,8 +93,16 @@ Use only Tab, Shift+Tab, arrows, Enter, and Space.
       announces the selected coordinates and fills the four
       fields; the fields remain the authoritative way to create
       the box.
-- [ ] Translating before typing text in a new box opens a "Text
-      required" dialog naming the record ID.
+- [ ] The "Provisional region review" group and "Candidate region"
+      selector are announced. Each option names its amber box as
+      `C<n>: x1,y1 to x2,y2`. Activating "Accept provisional box"
+      with no choice opens a "No provisional region" dialog.
+      Accepting a choice announces "Accepted provisional region C1
+      as record <id> ...", selects that record, removes the amber
+      option from the list, and adds an accepted provisional to the
+      box summary. The record's origin is `candidate` in the table.
+- [ ] Translating before typing text in a new manual or provisional
+      box opens a "Text required" dialog naming the record ID.
 - [ ] Editing OCR text and classification, then activating Apply
       changes, announces "Updated record <id>." and, when the word had
       Braille, that the Braille was cleared.

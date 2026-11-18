@@ -153,8 +153,11 @@ that are not already covered by an OCR record. Green and red retain
 their existing meanings (approved and rejected records). The live
 summary announces the candidate count, and every amber box has an
 accessible text description. Candidates are review aids, not accepted
-text: confirm or correct characters in the review table before
-translation and export.
+text. Use "Provisional region review" to choose a candidate by its
+coordinates and activate "Accept provisional box" when it really is
+missing text; the new record is selected for editing. Type or correct
+its characters in the review table before translation and export.
+Unaccepted amber boxes remain review aids only.
 
 Set `OCR_REGION_DETECTION=0` to disable the extra region pass if a
 particular image is dominated by diagram geometry.
@@ -168,7 +171,7 @@ GUI:
     uv run braille-converter convert scans/ --out braille_output --layout full
     uv run braille-converter convert equation.png --math
 
-Each image writes the four output files listed below. The command
+Each image writes the five output files listed below. The command
 prints every written path, reports each failed image on stderr, and
 exits 1 if any image failed (2 for a missing input path). Run
 `uv run braille-converter --help` for all options.
@@ -199,8 +202,13 @@ spoken label. The workflow is:
    bounding-box preview to fill them, then activate "Add manual
    box". The new record appears in the table, is selected for
    editing, and must be given OCR text before translation.
-7. Tab to "Translate all" and press Enter.
-8. Set the "Output folder" and "Page layout", then activate
+7. To promote an amber region, tab to "Candidate region" in
+   "Provisional region review", choose it by its coordinates, and
+   activate "Accept provisional box". The new record is selected;
+   type its text before translating. Unaccepted amber boxes stay
+   review aids and never enter the output.
+8. Tab to "Translate all" and press Enter.
+9. Set the "Output folder" and "Page layout", then activate
    "Export all". Changing the page layout refreshes the altered
    preview.
 

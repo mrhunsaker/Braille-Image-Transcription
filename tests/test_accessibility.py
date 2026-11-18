@@ -166,6 +166,8 @@ async def test_table_and_landmarks_are_named():
 
         assert "Manual bounding box creator" in names
 
+        assert "Provisional region review" in names
+
         assert "Original image preview" in names
 
         assert "Altered image preview" in names

@@ -650,6 +650,39 @@ class ConverterApp:
                 "directly."
             ).classes("text-caption")
 
+        with ui.card().classes("w-full").props(
+            'role=group aria-label='
+            '"Provisional region review"'
+        ):
+
+            ui.label(
+                "Provisional regions"
+            ).classes("text-subtitle1")
+
+            self.candidate_select = ui.select(
+                options=[],
+                label="Candidate region",
+                value=None
+            ).props(
+                'aria-label="Choose an amber candidate '
+                'region to accept"'
+            ).classes("w-full")
+
+            self.accept_candidate_button = ui.button(
+                "Accept provisional box",
+                on_click=self.accept_provisional_box
+            ).props(
+                'aria-label="Accept the selected '
+                'provisional region as a review record"'
+            ).classes("w-full")
+
+            ui.label(
+                "Amber boxes are regions OpenCV proposed "
+                "that OCR did not accept. Accepting one "
+                "creates a normal record; type its text "
+                "before translating."
+            ).classes("text-caption")
+
     def _build_previews(self):
 
         ui.label(
@@ -875,6 +908,8 @@ class ConverterApp:
             self.manual_x2,
             self.manual_y2,
             self.add_box_button,
+            self.candidate_select,
+            self.accept_candidate_button,
             self.layout_select,
             self.output_input
         )
@@ -1016,6 +1051,8 @@ class ConverterApp:
 
         self._box_preview_scale = data["box_preview_scale"]
 
+        self._sync_candidate_select()
+
         self._drag_start = None
 
         self.box_image_slot.clear()
@@ -1086,6 +1123,30 @@ class ConverterApp:
         self.manual_y1.set_value(box[1])
         self.manual_x2.set_value(box[2])
         self.manual_y2.set_value(box[3])
+
+    def _sync_candidate_select(self):
+        """Refresh the provisional-region chooser after a preview."""
+
+        # NiceGUI expects a mapping when option values differ from
+        # their labels. Lists of dicts are rendered as labels only.
+        options = {
+            index: (
+                f"C{index + 1}: {box[0]},{box[1]} to "
+                f"{box[2]},{box[3]}"
+            )
+            for index, box in enumerate(self.candidates)
+        }
+
+        self.candidate_select.set_options(
+            options,
+            value=(0 if options else None)
+        )
+
+        if options:
+            self.accept_candidate_button.enable()
+
+        else:
+            self.accept_candidate_button.disable()
 
     def handle_box_mouse(self, event):
         """Turn a drag on the preview into numeric coordinates."""
@@ -1228,6 +1289,87 @@ class ConverterApp:
             f"Added manual box {box[0]},{box[1]} to "
             f"{box[2]},{box[3]} as record "
             f"{record.id}. Type its OCR text, then "
+            "activate Translate all."
+        )
+
+    async def accept_provisional_box(self):
+        """Accept an amber OpenCV proposal as a review record."""
+
+        if not self.image_path:
+
+            self.show_error(
+                "No image",
+                "Open an image before accepting a "
+                "provisional region.",
+                source=self.accept_candidate_button
+            )
+
+            return
+
+        index = self.candidate_select.value
+
+        try:
+            index = int(index)
+
+        except (TypeError, ValueError):
+            index = None
+
+        if (
+            index is None
+            or not 0 <= index < len(self.candidates)
+        ):
+
+            self.show_error(
+                "No provisional region",
+                "Choose an amber candidate region before "
+                "accepting it.",
+                source=self.accept_candidate_button
+            )
+
+            return
+
+        box = normalize_box(
+            *self.candidates[index],
+            self._source_size
+        )
+
+        if any(
+            (
+                record.x1,
+                record.y1,
+                record.x2,
+                record.y2
+            ) == box
+            for record in self.records
+        ):
+
+            self.show_error(
+                "Duplicate box",
+                "That region has already been accepted. "
+                "Choose another candidate.",
+                source=self.accept_candidate_button
+            )
+
+            return
+
+        record = new_box_record(
+            box,
+            self.records,
+            ORIGIN_CANDIDATE
+        )
+
+        self.records.append(record)
+
+        self.populate_table()
+
+        self._load_editor(record)
+
+        self.record_select.set_value(record.id)
+
+        await self._refresh_visualizations(
+            f"Accepted provisional region C{index + 1} as "
+            f"record {record.id} at {box[0]},{box[1]} to "
+            f"{box[2]},{box[3]}. Type its OCR text, then "
             "activate Translate all."
         )
 

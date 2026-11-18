@@ -898,6 +898,94 @@ async def test_mouse_drag_fills_numeric_box_fields():
         )
 
 
+async def test_accept_provisional_candidate_creates_record():
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        with app.status_label:
+
+            await app._refresh_visualizations("ready")
+
+        assert app.candidates
+
+        options_before = len(
+            app.candidate_select.options
+        )
+
+        first_box = tuple(app.candidates[0])
+
+        await app.accept_provisional_box()
+
+        assert len(app.records) == 1
+
+        record = app.records[0]
+
+        assert record.origin == "candidate"
+
+        assert (
+            record.x1,
+            record.y1,
+            record.x2,
+            record.y2
+        ) == normalize_box(
+            *first_box,
+            app._source_size
+        )
+
+        assert "Accepted provisional region C1" in (
+            app.status_label.text
+        )
+
+        assert "1 accepted provisional" in (
+            app.box_summary.text
+        )
+
+        assert len(
+            app.candidate_select.options
+        ) < options_before
+
+
+async def test_accept_provisional_requires_a_selection():
+
+    holder = {}
+
+    async with user_simulation(
+        root=make_root(holder)
+    ) as user:
+
+        await user.open("/")
+
+        app = holder["app"]
+
+        app.image_path = SAMPLE_IMAGE
+
+        with app.status_label:
+
+            await app._refresh_visualizations("ready")
+
+        app.candidate_select.set_value(None)
+
+        with app.status_label:
+
+            await app.accept_provisional_box()
+
+        assert app.error_title.text == (
+            "No provisional region"
+        )
+
+        assert not app.records
+
+
 async def test_empty_text_blocks_translation():
 
     holder = {}

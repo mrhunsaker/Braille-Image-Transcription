@@ -29,6 +29,16 @@ and this project adheres to
   review records with `origin="manual"`; duplicate boxes and missing
   text are reported in dialogs. The review table now shows each
   record's origin.
+- Accessible provisional region review: a labelled "Candidate region"
+  selector and "Accept provisional box" button promote an amber
+  OpenCV proposal to a normal review record with `origin="candidate"`.
+  Accepted regions leave the candidate list, require typed text before
+  translation, and are included in the clean export. Missing or
+  duplicate selections open explicit dialogs.
+- Documentation: corrected the CLI output-file count to five and
+  documented provisional acceptance in the README and manual
+  accessibility checklist. The CLI regression test now checks for
+  the clean PNG alongside the original four artifacts.
 
 - `.github/dependabot.yml`: weekly Dependabot updates for Python
   dependencies (`uv`, including `uv.lock`) and GitHub Actions, with

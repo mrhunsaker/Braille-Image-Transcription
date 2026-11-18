@@ -321,7 +321,12 @@ def test_convert_writes_all_outputs(
         for name in written
     )
 
-    assert len(written) == 4
+    assert any(
+        name.endswith("_clean.png")
+        for name in written
+    )
+
+    assert len(written) == 5
 
 
 def test_launch_gui_passes_native_flag(monkeypatch):
