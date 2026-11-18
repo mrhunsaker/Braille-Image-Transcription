@@ -247,7 +247,7 @@ def test_untranslated_group_is_rejected(tmp_path):
         )
 
 
-def test_export_writes_all_four_artifacts(tmp_path):
+def test_export_writes_all_five_artifacts(tmp_path):
 
     source = make_source(tmp_path)
 
@@ -263,7 +263,9 @@ def test_export_writes_all_four_artifacts(tmp_path):
 
     assert [
         path.suffix for path in paths
-    ] == [".png", ".pdf", ".json", ".svg"]
+    ] == [".png", ".pdf", ".json", ".svg", ".png"]
+
+    assert paths[4].name.endswith("_clean.png")
 
     assert all(
         path.exists() and path.stat().st_size > 0
@@ -398,6 +400,118 @@ def test_approved_text_is_removed_before_rendering(
     # Only one Braille dot is drawn in this box; the
     # original solid black rectangle must be gone.
     assert dark_in_box < before
+
+
+def test_clean_export_removes_every_marked_box(tmp_path):
+    """The clean download has no objects, whatever their state."""
+
+    source = tmp_path / "source.png"
+
+    image = Image.new(
+        "RGB",
+        (200, 100),
+        "white"
+    )
+
+    draw = ImageDraw.Draw(image)
+
+    boxes = (
+        (20, 20, 60, 40),
+        (100, 20, 140, 40)
+    )
+
+    for box in boxes:
+        draw.rectangle(box, fill="black")
+
+    image.save(source)
+
+    approved = OCRRecord(
+        id=1,
+        text="a",
+        x1=20,
+        y1=20,
+        x2=60,
+        y2=40,
+        group_id="g1",
+        braille="⠁"
+    )
+
+    rejected = OCRRecord(
+        id=2,
+        text="b",
+        x1=100,
+        y1=20,
+        x2=140,
+        y2=40,
+        group_id="g2",
+        braille="",
+        approved=False,
+        origin="manual"
+    )
+
+    paths = export_outputs(
+        source,
+        [approved, rejected],
+        tmp_path / "out",
+        LAYOUT,
+        PROFILE
+    )
+
+    with Image.open(paths[4]) as clean:
+
+        scale = clean.width / 200
+
+        gray = clean.convert("L")
+
+        for box in boxes:
+
+            region = gray.crop(
+                tuple(round(value * scale) for value in box)
+            )
+
+            assert dark_pixels(region) < 20
+
+    with Image.open(paths[0]) as braille:
+
+        assert dark_pixels(braille) > 0
+
+
+def test_clean_export_has_no_braille_overlay(tmp_path):
+    """The clean artifact is blank where Braille would be drawn."""
+
+    source = tmp_path / "source.png"
+
+    Image.new(
+        "RGB",
+        (100, 100),
+        "white"
+    ).save(source)
+
+    record = OCRRecord(
+        id=1,
+        text="a",
+        x1=10,
+        y1=10,
+        x2=20,
+        y2=20,
+        group_id="g1",
+        braille="⠿",
+        origin="candidate"
+    )
+
+    paths = export_outputs(
+        source,
+        [record],
+        tmp_path / "out",
+        LAYOUT,
+        PROFILE
+    )
+
+    with Image.open(paths[0]) as braille:
+        assert dark_pixels(braille) > 0
+
+    with Image.open(paths[4]) as clean:
+        assert dark_pixels(clean) == 0
 
 
 def test_pdf_uses_letter_page(tmp_path):

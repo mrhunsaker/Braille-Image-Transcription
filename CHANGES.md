@@ -19,6 +19,10 @@ and this project adheres to
   and create review-ready records for manual/provisional boxes.
 - JSON export schema `1.1` documents record provenance and explains
   the `origin` values in its notes.
+- `export_outputs()` now writes `{base}_clean.png`: the source image
+  with every marked box inpainted (approved, rejected, manual and
+  provisional) and no Braille overlay, ready for Braille to be added
+  later. The existing four artifacts are unchanged.
 
 - `.github/dependabot.yml`: weekly Dependabot updates for Python
   dependencies (`uv`, including `uv.lock`) and GitHub Actions, with

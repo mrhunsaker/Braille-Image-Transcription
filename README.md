@@ -24,6 +24,8 @@ containing text and mathematical notation into Braille.
 - US Letter PDF export.
 - JSON export.
 - Tactile-dot SVG export.
+- Clean PNG export with every marked object removed, ready for
+  Braille to be added by hand later.
 - Startup validation with explicit error dialogs for missing
   dependencies (no silent failures).
 - `braille-converter doctor` command for checking the setup
@@ -213,6 +215,11 @@ The application produces:
     filename_braille.pdf
     filename_ocr.json
     filename_tactile.svg
+    filename_clean.png
+
+The `_clean.png` file contains no Braille. Every marked box —
+approved, rejected, manually drawn and accepted provisional — is
+inpainted so the page is ready for hand-added Braille.
 
 ## Testing
 

@@ -25,7 +25,8 @@ class ExportError(RuntimeError):
     """Raised when the records are not safe to export."""
 
 
-def remove_text_inpaint(image, records):
+def box_mask(image, records):
+    """Build a white mask covering every supplied record box."""
 
     rgb = np.array(
         image.convert("RGB")
@@ -37,9 +38,6 @@ def remove_text_inpaint(image, records):
     )
 
     for record in records:
-
-        if not record.approved:
-            continue
 
         pad = max(
             2,
@@ -73,6 +71,16 @@ def remove_text_inpaint(image, records):
             -1
         )
 
+    return mask
+
+
+def _inpaint_mask(image, mask):
+    """Apply one prepared mask to the source image."""
+
+    rgb = np.array(
+        image.convert("RGB")
+    )
+
     bgr = cv2.cvtColor(
         rgb,
         cv2.COLOR_RGB2BGR
@@ -90,6 +98,55 @@ def remove_text_inpaint(image, records):
             result,
             cv2.COLOR_BGR2RGB
         )
+    )
+
+
+def remove_text_inpaint(image, records):
+    """Remove approved text only, for the Braille overlay preview."""
+
+    approved = [
+        record for record in records
+        if record.approved
+    ]
+
+    return _inpaint_mask(
+        image,
+        box_mask(image, approved)
+    )
+
+
+def remove_boxed_objects(image, records):
+    """Remove every marked object, whatever its approval state.
+
+    This powers the clean download: rejected boxes, manually drawn
+    boxes and accepted provisional regions are erased as well, so
+    the result is a blank worksheet ready for Braille to be added.
+    """
+
+    return _inpaint_mask(
+        image,
+        box_mask(image, records)
+    )
+
+
+def render_clean_image(original, records, layout, profile):
+    """Build the object-free page without any Braille overlay."""
+
+    cleaned = remove_boxed_objects(
+        original,
+        records
+    )
+
+    output_width, output_height = fitted_size_px(
+        original.width,
+        original.height,
+        layout,
+        profile.dpi
+    )
+
+    return cleaned.resize(
+        (output_width, output_height),
+        Image.Resampling.LANCZOS
     )
 
 
@@ -453,7 +510,24 @@ def export_outputs(
         records
     )
 
-    # 4. Tactile SVG output.
+    # 4. Clean, object-free image for hand-transcribed Braille.
+    # Every marked box is removed, including rejected and manual
+    # ones, and no Braille dots are drawn on this artifact.
+    clean_path = output_dir / f"{base}_clean.png"
+
+    clean_page = render_clean_image(
+        original,
+        records,
+        layout,
+        profile
+    )
+
+    clean_page.save(
+        clean_path,
+        dpi=(profile.dpi, profile.dpi)
+    )
+
+    # 5. Tactile SVG output.
     tactile_path = output_dir / f"{base}_tactile.svg"
 
     # The tactile SVG must contain the same words as the
@@ -474,5 +548,6 @@ def export_outputs(
         png_path,
         pdf_path,
         json_path,
-        tactile_path
+        tactile_path,
+        clean_path
     ]

@@ -517,6 +517,7 @@ async def test_full_workflow_creates_all_outputs(
             ".json",
             ".pdf",
             ".png",
+            ".png",
             ".svg",
         ], written
 
