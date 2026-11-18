@@ -73,6 +73,11 @@ Use only Tab, Shift+Tab, arrows, Enter, and Space.
 - [ ] The altered preview's live summary names how many translated
       words are overlaid and warns about untranslated or mixed-
       approval words.
+- [ ] Visually inspect the altered preview and exported tactile SVG:
+      Braille words do not overlap. A long line wraps to a new row,
+      an overlong word continues on the next row, and later source
+      lines move down or rows pack tighter instead of being covered.
+      The tactile SVG uses the same word positions as the PNG/PDF.
 - [ ] Preview refresh announces "Updating bounding boxes and image
       previews; please wait." and disables workflow controls until
       it finishes.

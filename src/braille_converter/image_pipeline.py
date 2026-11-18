@@ -13,6 +13,7 @@ from reportlab.pdfgen import canvas
 from .braille_render import (
     BrailleProfile,
     draw_braille,
+    layout_braille_groups,
     write_tactile_svg
 )
 
@@ -234,7 +235,8 @@ def _render_braille_page(
     records,
     layout,
     profile,
-    renderable
+    renderable,
+    placements=None
 ):
     """Build the altered page shared by preview and export."""
 
@@ -255,40 +257,24 @@ def _render_braille_page(
         Image.Resampling.LANCZOS
     )
 
-    scale_x = output_width / original.width
+    if placements is None:
 
-    scale_y = output_height / original.height
+        placements = layout_braille_groups(
+            renderable,
+            profile,
+            original.size,
+            page.size
+        )
 
     draw = ImageDraw.Draw(page)
 
-    for group in renderable:
-
-        ordered = sorted(
-            group,
-            key=lambda record: record.x1
-        )
-
-        braille = next(
-            record.braille
-            for record in ordered
-            if record.braille
-        )
-
-        x = round(
-            min(record.x1 for record in ordered)
-            * scale_x
-        )
-
-        y = round(
-            min(record.y1 for record in ordered)
-            * scale_y
-        )
+    for placement in placements:
 
         draw_braille(
             draw,
-            x,
-            y,
-            braille,
+            placement.x,
+            placement.y,
+            placement.braille,
             profile
         )
 
@@ -439,15 +425,32 @@ def export_outputs(
 
         original = opened.convert("RGB")
 
+    output_size = fitted_size_px(
+        original.width,
+        original.height,
+        layout,
+        profile.dpi
+    )
+
+    # Compute positions once so the raster page and tactile SVG
+    # cannot disagree about where any word belongs.
+    placements = layout_braille_groups(
+        readiness["renderable"],
+        profile,
+        original.size,
+        output_size
+    )
+
     page = _render_braille_page(
         original,
         records,
         layout,
         profile,
-        readiness["renderable"]
+        readiness["renderable"],
+        placements
     )
 
-    output_width, output_height = page.size
+    output_width, output_height = output_size
 
     # 1. PNG output.
     png_path = output_dir / f"{base}_braille.png"
@@ -530,18 +533,13 @@ def export_outputs(
     # 5. Tactile SVG output.
     tactile_path = output_dir / f"{base}_tactile.svg"
 
-    # The tactile SVG must contain the same words as the
-    # raster outputs; unapproved words are not embossed.
+    # The tactile SVG reuses the raster placements; unapproved
+    # words are not embossed.
     write_tactile_svg(
         tactile_path,
-        [
-            record
-            for group in readiness["renderable"]
-            for record in group
-        ],
+        placements,
         profile,
-        original.size,
-        page.size
+        output_size
     )
 
     return [

@@ -2,6 +2,7 @@
 """Tests for the export artifacts and their safety rules."""
 
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +10,11 @@ import pytest
 
 from PIL import Image, ImageDraw
 
-from braille_converter.braille_render import BrailleProfile
+from braille_converter.braille_render import (
+    BrailleProfile,
+    layout_braille_groups,
+    mm_to_px
+)
 
 from braille_converter.image_pipeline import (
     ExportError,
@@ -24,6 +29,8 @@ from braille_converter.layout import (
 )
 
 from braille_converter.models import OCRRecord
+
+from braille_converter.pipeline import export_readiness
 
 
 SAMPLE_IMAGE = (
@@ -560,6 +567,94 @@ def test_svg_contains_only_approved_braille(tmp_path):
     # "⠁" has one dot; "⠿" would add six more if the
     # unapproved word leaked into the tactile output.
     assert svg.count("<circle ") == 1
+
+
+def test_exported_svg_and_png_share_the_no_overlap_layout(tmp_path):
+    """Both artifacts must use one placement pass."""
+
+    source = make_source(tmp_path)
+
+    records = [
+        make_record(1, "g1"),
+        make_record(2, "g2")
+    ]
+
+    records[1].x1 = 22
+
+    paths = export_outputs(
+        source,
+        records,
+        tmp_path / "out",
+        LAYOUT,
+        PROFILE
+    )
+
+    output_size = fitted_size_px(
+        200,
+        100,
+        LAYOUT,
+        PROFILE.dpi
+    )
+
+    placements = layout_braille_groups(
+        export_readiness(records)["renderable"],
+        PROFILE,
+        (200, 100),
+        output_size
+    )
+
+    assert len(placements) == 2
+
+    assert placements[1].x >= (
+        placements[0].x
+        + placements[0].width
+        + mm_to_px(
+            PROFILE.cell_pitch_mm,
+            PROFILE.dpi
+        )
+    )
+
+    svg = paths[3].read_text(encoding="utf-8")
+
+    centers = [
+        (
+            float(match.group("cx")),
+            float(match.group("cy"))
+        )
+        for match in re.finditer(
+            r'<circle cx="(?P<cx>[0-9.]+)" '
+            r'cy="(?P<cy>[0-9.]+)"',
+            svg
+        )
+    ]
+
+    mm_per_pixel = 25.4 / PROFILE.dpi
+
+    radius = PROFILE.dot_diameter_mm / 2
+
+    expected = {
+        (
+            round(placement.x * mm_per_pixel + radius, 3),
+            round(placement.y * mm_per_pixel + radius, 3)
+        )
+        for placement in placements
+    }
+
+    assert expected.issubset(set(centers))
+
+    with Image.open(paths[0]) as png:
+
+        # The gap between the two words stays free of Braille ink.
+        gap = png.crop(
+            (
+                placements[0].x + placements[0].width,
+                placements[0].y,
+                placements[1].x,
+                placements[0].y + placements[0].height
+            )
+        )
+
+        assert dark_pixels(gap) == 0
 
 
 def test_unwritable_output_dir_is_loud(tmp_path):

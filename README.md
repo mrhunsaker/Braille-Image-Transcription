@@ -19,6 +19,9 @@ containing text and mathematical notation into Braille.
 - UEB translation through Liblouis.
 - Unicode Braille representation.
 - Physical Braille dot rendering.
+- Collision-aware Braille placement: words are spaced and wrapped
+  near their source positions, and PNG, PDF, and tactile SVG all use
+  the same layout.
 - Half-page and full-page layouts.
 - PNG export.
 - US Letter PDF export.
@@ -233,6 +236,15 @@ The application produces:
 The `_clean.png` file contains no Braille. Every marked box —
 approved, rejected, manually drawn and accepted provisional — is
 inpainted so the page is ready for hand-added Braille.
+
+Braille words in the PNG, PDF, and tactile SVG are placed by one
+shared layout pass. A word starts near its source box, is shifted
+right to leave at least one blank cell after its neighbour, and
+wraps to a fresh row when the line is full. An overlong word
+continues on following rows; later source lines are pushed down, or
+rows are packed more tightly if the page would overflow. Text
+spacing inside the returned Braille string is a separate,
+still-deferred task in `TODO.md`.
 
 ## Testing
 

@@ -39,6 +39,13 @@ and this project adheres to
   documented provisional acceptance in the README and manual
   accessibility checklist. The CLI regression test now checks for
   the clean PNG alongside the original four artifacts.
+- Shared `BraillePlacement` and `layout_braille_groups()` in
+  `braille_render.py`, with unit and export regression tests for
+  same-line spacing, wrapping, overlong-word continuation,
+  page-height compaction, later-line displacement, tactile SVG
+  coordinates, and a gap free of Braille ink in the PNG. `TODO.md`
+  now distinguishes this rendering fix from still-deferred spacing
+  inside the returned Braille string.
 
 - `.github/dependabot.yml`: weekly Dependabot updates for Python
   dependencies (`uv`, including `uv.lock`) and GitHub Actions, with
@@ -218,6 +225,15 @@ and this project adheres to
 
 ### Fixed
 
+- Braille words no longer overlap when source boxes are closer
+  together than a physical Braille cell. `layout_braille_groups()`
+  spaces neighbouring words by at least one empty cell, wraps words
+  that would run past the right margin, splits an overlong word onto
+  continuation rows, and pushes later source lines below wrapped
+  rows. If the reflow needs more vertical room, rows are packed
+  tighter while staying collision-free; a page that still cannot
+  hold the Braille reports a clear error. PNG, PDF, and tactile SVG
+  now consume the same placements.
 - Clicking a row in the OCR Character Review table no longer raises
   `AttributeError: 'TableSelectionEventArguments' object has no
   attribute 'args'`. NiceGUI 4 delivers selected rows in
